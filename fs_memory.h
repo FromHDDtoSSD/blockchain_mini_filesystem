@@ -12,7 +12,7 @@
 #define MEMORY_ASSERT_SIGNATURE "MIKE"
 #define MEMORY_ASSERT_SIG_LENGTH 4
 
-byte_t *fs_malloc(fsize_t size) {
+static inline byte_t *fs_malloc(fsize_t size) {
     byte_t *ptr = (byte_t *)malloc((size_t)size + sizeof(fsize_t) + MEMORY_ASSERT_SIG_LENGTH);
     if(ptr) {
         *(fsize_t *)ptr = size;
@@ -22,11 +22,12 @@ byte_t *fs_malloc(fsize_t size) {
         return NULL;
 }
 
-void fs_free(void *ptr) {
+static inline bool_t fs_free(void *ptr, bool_t ret) {
     if(ptr) {
         assert(memcmp((byte_t *)ptr + *(fsize_t *)((byte_t *)ptr - sizeof(fsize_t)), MEMORY_ASSERT_SIGNATURE, MEMORY_ASSERT_SIG_LENGTH) == 0);
         free((byte_t *)ptr - sizeof(fsize_t));
     }
+    return ret;
 }
 
 #endif

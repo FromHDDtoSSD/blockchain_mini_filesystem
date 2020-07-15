@@ -8,14 +8,7 @@
 #include "fs_types.h"
 #include "fs_const.h"
 #include "fs_memory.h"
-
-enum attr_type {
-    
-};
-
-enum token_type {
-
-};
+#include "fs_code.h"
 
 #pragma pack(push, 1)
 typedef struct _tag_fs_header {
