@@ -36,14 +36,14 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
     */
 
     MessageBoxA(NULL, "file test.", "test 2", MB_OK);
-    FILE *fp;
-    assert(fs_open(&fp, "D:\\fsdisk\\fsindex0001.dat"));
-    byte_t *data = fs_malloc(fs_getsize());
+    FSFILE *fp;
+    assert(fs_file_open(&fp, "D:\\fsdisk\\fsindex0001.dat"));
+    byte_t *data = fs_malloc(fs_file_getsize());
     assert(data);
-    assert(fs_read(fp, data, fs_getsize()));
-    for(int i=0; i < fs_getsize(); ++i)
+    assert(fs_file_read(fp, data, fs_file_getsize()));
+    for(int i=0; i < fs_file_getsize(); ++i)
         assert(data[i] == 0x00);
-    fs_free(data, fs_close(fp, true_t));
+    fs_free(data, fs_file_close(fp, true_t));
 
 
 

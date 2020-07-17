@@ -50,7 +50,7 @@ typedef struct _tag_file_record {
     fragment_info fragment;
     hash_record hash;
     fsize_t size;
-    str_t name[MAX_PATH_DEFAULT];
+    str_t name[FS_PATH_LENGTH];
     byte_t data[1];
 } file_record;
 #pragma pack(pop)

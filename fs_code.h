@@ -18,12 +18,4 @@ typedef enum _tag_token_status {
     TOKEN_ERROR_HASH = 5,
 } token_status;
 
-typedef enum _tag_io_status {
-    IO_SUCCESS = 0,
-    IO_ERROR_PARAM = 1,
-    IO_ERROR_LOCKED = 2,
-    IO_ERROR_MEMORY_ALLOCATE_FAILURE = 3,
-    IO_ERROR_DRIVE_RW_FAILURE = 4,
-} io_status;
-
 #endif

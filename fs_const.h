@@ -11,7 +11,10 @@
 #define SECTOR_SIZE 512
 #define CLUSTER_SIZE 4096
 #define CLUSTER_CAPACITY 1024
-#define MAX_PATH_DEFAULT 32
+#define FS_PATH_LENGTH 32
+#ifndef MAX_PATH
+#define MAX_PATH 256
+#endif
 
 #define ARRAYLEN(X) (sizeof(X)/sizeof(X[0]))
 #define true_t 1

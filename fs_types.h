@@ -21,6 +21,7 @@ typedef unsigned __int64 uint64_t;
 typedef unsigned char byte_t;
 typedef int32_t bool_t;
 typedef int32_t counter_t;
+typedef int32_t index_t;
 typedef unsigned char str_t;
 typedef int32_t fsize_t;
 typedef int32_t flag_t;

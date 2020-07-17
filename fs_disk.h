@@ -11,7 +11,51 @@
 #include "fs_code.h"
 #include "fs_file.h"
 
-io_status fs_diskread(sector_t begin, sector_t num);
-io_status fs_diskwrite(sector_t begin, sector_t num);
+/*
+* ** fs_disk **
+*
+* These behave like LBA on disk.
+*
+* In addition, hash calculation is to include certain "side effects" comes to approve. 
+* e.g, Implement this into a Blockchain for cluster approval.
+*
+* sector: The size is SECTOR_SIZE and is the minimum unit, call it with a LBA from 0.
+* cluster: The size is CLUSTER_SIZE and is the access unit, call it with a LBA from mini filesystem.
+* chunk: This is one of each file distributed to "fsindex%04d.dat".
+*/
+
+typedef enum _tag_disk_status {
+    DISK_SUCCESS = 0,
+    DISK_ERROR_PARAM = 1,
+    DISK_ERROR_LOCKED = 2,
+    DISK_ERROR_MEMORY_ALLOCATE_FAILURE = 3,
+    DISK_ERROR_DRIVE_RW_FAILURE = 4,
+} disk_status;
+
+typedef struct _tag_DISKIO {
+    FSFILE **fp;
+    index_t fp_num;
+    index_t fp_current;
+} DISKIO;
+
+typedef struct _tag_FSDISK {
+    DISKIO io;
+    disk_status status;
+} FSDISK;
+
+static inline bool_t fs_disk_setsuccess(FSDISK *fdp) {
+    fdp->status = DISK_SUCCESS;
+    return true_t;
+}
+
+static inline bool_t fs_disk_seterror(FSDISK *fdp, disk_status status) {
+    fdp->status = status;
+    return false_t;
+}
+
+bool_t fs_disk_open(FSDISK **fdp);
+bool_t fs_disk_close(FSDISK *fdp, bool_t ret);
+bool_t fs_disk_read(FSDISK *fdp, sector_t begin, counter_t num, byte_t *buf);
+bool_t fs_disk_write(FSDISK *fdp, sector_t begin, counter_t num, const byte_t *buf);
 
 #endif
