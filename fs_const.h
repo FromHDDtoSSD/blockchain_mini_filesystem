@@ -9,7 +9,7 @@
 ** Note: Must NOT change values below.
 */
 #define SECTOR_SIZE 512
-#define CLUSTER_SIZE 4096
+#define SECTORS_PER_CLUS 8
 #define CLUSTER_CAPACITY 1024
 #define FS_PATH_LENGTH 32
 #ifndef MAX_PATH

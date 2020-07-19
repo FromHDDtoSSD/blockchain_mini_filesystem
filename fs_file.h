@@ -39,6 +39,7 @@ static inline file_status fs_file_getstatus(FSFILE *fp) {
 static inline bool_t fs_file_open(FSFILE **fp, const char *name) {
     *fp = fs_malloc(sizeof(FSFILE));
     if(!*fp) return false_t;
+    (*fp)->file_ptr = NULL;
     bool_t exist = fs_file_isfile(name);
     if(exist)
         (*fp)->file_ptr = fopen(name, "rb+");
@@ -51,7 +52,7 @@ static inline bool_t fs_file_open(FSFILE **fp, const char *name) {
 }
 
 static inline bool_t fs_file_close(FSFILE *fp, bool_t ret) {
-    fclose(fp->file_ptr);
+    if(fp->file_ptr) fclose(fp->file_ptr);
     return fs_free(fp, ret);
 }
 
@@ -100,8 +101,12 @@ static inline bool_t fs_file_seek_top(FSFILE *fp) {
     return fseek(fp->file_ptr, 0, SEEK_SET) == 0;
 }
 
+static inline bool_t fs_file_seek(FSFILE *fp, index_t pos) {
+    return fseek(fp->file_ptr, (long)pos, SEEK_SET) == 0;
+}
+
 static inline fsize_t fs_file_getsize() {
-    return CLUSTER_SIZE * CLUSTER_CAPACITY;
+    return SECTOR_SIZE * SECTORS_PER_CLUS * CLUSTER_CAPACITY;
 }
 
 #endif

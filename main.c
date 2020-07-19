@@ -7,6 +7,7 @@
 #include <assert.h>
 #include "fs_memory.h"
 #include "fs_file.h"
+#include "fs_disk.h"
 #include "mini_filesystem.h"
 
 #ifdef WIN32
@@ -18,10 +19,10 @@
 INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     MessageBoxA(NULL, "memory test.", "test 1", MB_OK);
-    for(int i=0; i < 10000; ++i) {
+    for(index_t i=0; i < 10000; ++i) {
         byte_t *ptr = fs_malloc(1024);
         if(ptr) {
-            for(int k=0; k < 1024; ++k)
+            for(index_t k=0; k < 1024; ++k)
                 ptr[k] = (byte_t)rand();
             fs_free(ptr, true_t);
         }
@@ -29,7 +30,7 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
     /*
     {
         byte_t *ptr = fs_malloc(1024);
-        for(int k = 0; k < 1025; ++k)
+        for(index_t k = 0; k < 1025; ++k)
             ptr[k] = (byte_t)rand();
         fs_free(ptr, true_t); // OK assert
     }
@@ -41,11 +42,49 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
     byte_t *data = fs_malloc(fs_file_getsize());
     assert(data);
     assert(fs_file_read(fp, data, fs_file_getsize()));
-    for(int i=0; i < fs_file_getsize(); ++i)
-        assert(data[i] == 0x00);
+    //for(index_t i=0; i < fs_file_getsize(); ++i)
+    //    assert(data[i] == 0x00);
     fs_free(data, fs_file_close(fp, true_t));
 
+    MessageBoxA(NULL, "file disk.", "test 3", MB_OK);
+    {
+        FSDISK *fdp;
+        assert(fs_disk_open(&fdp));
+        sector_t begin = 100;
+        counter_t num = 28192;
+        byte_t *buf = fs_malloc(num * SECTOR_SIZE);
+        assert(buf);
+        for(index_t i = 0; i < num; ++i)
+            buf[i] = 0x00; // (byte_t)rand();
+        assert(fs_disk_write(fdp, begin, num, buf));
+        fs_free(buf, fs_disk_close(fdp, true_t));
+    }
+    {
+        FSDISK *fdp;
+        assert(fs_disk_open(&fdp));
+        sector_t begin = 0;
+        counter_t num = 8192;
+        byte_t *buf = fs_malloc(num * SECTOR_SIZE);
+        assert(buf);
+        assert(fs_disk_read(fdp, begin, num, buf));
+        for(index_t i=0; i < num; ++i)
+            assert(buf[i] == 0x00);
+        fs_free(buf, fs_disk_close(fdp, true_t));
+    }
+    {
+        FSDISK *fdp;
+        assert(fs_disk_open(&fdp));
+        sector_t begin = 100;
+        counter_t num = 8092;
+        byte_t *buf = fs_malloc(num * SECTOR_SIZE);
+        assert(buf);
+        assert(fs_disk_read(fdp, begin, num, buf));
+        for(index_t i = 0; i < num; ++i)
+            assert(buf[i] == 0x00);
+        fs_free(buf, fs_disk_close(fdp, true_t));
+    }
 
+    
 
 
 

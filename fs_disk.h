@@ -20,7 +20,7 @@
 * e.g, Implement this into a Blockchain for cluster approval.
 *
 * sector: The size is SECTOR_SIZE and is the minimum unit, call it with a LBA from 0.
-* cluster: The size is CLUSTER_SIZE and is the access unit, call it with a LBA from mini filesystem.
+* cluster: The size is SECTOR_SIZE * SECTORS_PER_CLUS and is the access unit, call it with a LBA from mini filesystem.
 * chunk: This is one of each file distributed to "fsindex%04d.dat".
 */
 
