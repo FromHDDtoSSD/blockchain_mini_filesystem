@@ -63,15 +63,15 @@ bool_t fs_disk_close(FSDISK *fdp, bool_t ret) {
 
 bool_t fs_disk_read(FSDISK *fdp, sector_t begin, counter_t num, byte_t *buf) {
     const fsize_t fsize = fs_file_getsize();
-    fsize_t rbegin = begin * SECTOR_SIZE;
+    const fsize_t rbegin = begin * SECTOR_SIZE;
     fsize_t remain = num * SECTOR_SIZE;
     for(index_t i=rbegin/fsize; i < fdp->io.fp_num; ++i) {
-        fsize_t offset = (i==rbegin/fsize) ? rbegin: 0;
-        fsize_t rsize = (remain > fsize) ? fsize - offset: remain;
+        fsize_t offset = (i==rbegin/fsize) ? rbegin-(((index_t)(rbegin/fsize))*fsize): 0;
+        fsize_t rsize = (remain > fsize-offset) ? fsize - offset: remain;
         if(!fs_file_seek(fdp->io.fp[i], offset)) return DISK_SET_ERROR_BY_FILE(fdp, i);
         if(!fs_file_read(fdp->io.fp[i], buf, rsize)) return DISK_SET_ERROR_BY_FILE(fdp, i);
         buf += rsize;
-        remain -= rsize;
+        if((remain -= rsize)==0) break;
         if(i+1==fdp->io.fp_num && remain > 0) return fs_disk_seterror(fdp, DISK_ERROR_PARAM);
     }
     return fs_disk_setsuccess(fdp, DISK_SUCCESS);
@@ -79,9 +79,9 @@ bool_t fs_disk_read(FSDISK *fdp, sector_t begin, counter_t num, byte_t *buf) {
 
 bool_t fs_disk_write(FSDISK *fdp, sector_t begin, counter_t num, const byte_t *buf) {
     const fsize_t fsize = fs_file_getsize();
-    fsize_t wbegin = begin * SECTOR_SIZE;
+    const fsize_t wbegin = begin * SECTOR_SIZE;
     fsize_t remain = num * SECTOR_SIZE;
-    const index_t reqfile = (wbegin + remain)/fsize;
+    const index_t reqfile = (wbegin + remain)/fsize + (((wbegin + remain)%fsize!=0) ? 1: 0); 
     for(index_t i=fdp->io.fp_num; i < reqfile; ++i) {
         if(i==fdp->io.fp_num) {
             FSFILE **tmp = (FSFILE **)fs_malloc(sizeof(FSFILE *) * reqfile);
@@ -96,12 +96,16 @@ bool_t fs_disk_write(FSDISK *fdp, sector_t begin, counter_t num, const byte_t *b
         if(!fs_file_open(&fdp->io.fp[i], path)) return DISK_SET_ERROR_BY_FILE(fdp, i);
     }
     for(index_t i=wbegin/fsize; i < fdp->io.fp_num; ++i) {
-        fsize_t offset = (i==wbegin/fsize) ? wbegin : 0;
-        fsize_t wsize = (remain > fsize) ? fsize - offset: remain;
+        fsize_t offset = (i==wbegin/fsize) ? wbegin-(((index_t)(wbegin/fsize))*fsize): 0;
+        fsize_t wsize = (remain > fsize-offset) ? fsize - offset: remain;
+        assert(wsize<=fsize);
+        assert(offset<fsize);
+        assert(offset+wsize<=fsize);
         if(!fs_file_seek(fdp->io.fp[i], offset)) return DISK_SET_ERROR_BY_FILE(fdp, i);
         if(!fs_file_write(fdp->io.fp[i], buf, wsize)) return DISK_SET_ERROR_BY_FILE(fdp, i);
         buf += wsize;
-        remain -= wsize;
+        if((remain -= wsize)==0) break;
+        if(i+1==fdp->io.fp_num && remain > 0) return fs_disk_seterror(fdp, DISK_ERROR_PARAM);
     }
     return fs_disk_setsuccess(fdp, DISK_SUCCESS);
 }

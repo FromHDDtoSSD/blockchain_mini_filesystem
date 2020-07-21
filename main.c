@@ -42,46 +42,34 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
     byte_t *data = fs_malloc(fs_file_getsize());
     assert(data);
     assert(fs_file_read(fp, data, fs_file_getsize()));
-    //for(index_t i=0; i < fs_file_getsize(); ++i)
-    //    assert(data[i] == 0x00);
     fs_free(data, fs_file_close(fp, true_t));
 
-    MessageBoxA(NULL, "file disk.", "test 3", MB_OK);
-    {
-        FSDISK *fdp;
-        assert(fs_disk_open(&fdp));
-        sector_t begin = 100;
-        counter_t num = 28192;
-        byte_t *buf = fs_malloc(num * SECTOR_SIZE);
-        assert(buf);
-        for(index_t i = 0; i < num; ++i)
-            buf[i] = 0x00; // (byte_t)rand();
-        assert(fs_disk_write(fdp, begin, num, buf));
-        fs_free(buf, fs_disk_close(fdp, true_t));
-    }
-    {
-        FSDISK *fdp;
-        assert(fs_disk_open(&fdp));
-        sector_t begin = 0;
-        counter_t num = 8192;
-        byte_t *buf = fs_malloc(num * SECTOR_SIZE);
-        assert(buf);
-        assert(fs_disk_read(fdp, begin, num, buf));
-        for(index_t i=0; i < num; ++i)
-            assert(buf[i] == 0x00);
-        fs_free(buf, fs_disk_close(fdp, true_t));
-    }
-    {
-        FSDISK *fdp;
-        assert(fs_disk_open(&fdp));
-        sector_t begin = 100;
-        counter_t num = 8092;
-        byte_t *buf = fs_malloc(num * SECTOR_SIZE);
-        assert(buf);
-        assert(fs_disk_read(fdp, begin, num, buf));
-        for(index_t i = 0; i < num; ++i)
-            assert(buf[i] == 0x00);
-        fs_free(buf, fs_disk_close(fdp, true_t));
+    MessageBoxA(NULL, "disk test.", "test 3", MB_OK);
+    for(index_t test=0; test < 64; ++test) {
+        const sector_t begin = rand() % 10000000;
+        const counter_t num  = rand() % 94581920;
+        if(num==0) continue;
+        const fsize_t bsize = num * SECTOR_SIZE;
+        byte_t *wbuf = fs_malloc(bsize);
+        assert(wbuf);
+        {
+            FSDISK *fdp;
+            assert(fs_disk_open(&fdp));
+            for(index_t i = 0; i < bsize; ++i)
+                wbuf[i] = (byte_t)rand();
+            assert(fs_disk_write(fdp, begin, num, wbuf));
+            fs_disk_close(fdp, true_t);
+        }
+        {
+            FSDISK *fdp;
+            assert(fs_disk_open(&fdp));
+            byte_t *rbuf = fs_malloc(bsize);
+            assert(rbuf);
+            assert(fs_disk_read(fdp, begin, num, rbuf));
+            assert(memcmp(wbuf, rbuf, bsize) == 0);
+            fs_free(rbuf, fs_disk_close(fdp, true_t));
+        }
+        fs_free(wbuf, true_t);
     }
 
     
