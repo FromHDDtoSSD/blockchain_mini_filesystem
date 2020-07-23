@@ -8,6 +8,16 @@
 static const str_t *fs_disk_fileformat = "D:\\fsdisk\\fsindex%04d.dat"; /* size is fixed: SECTOR_SIZE * SECTORS_PER_CLUS * CLUSTER_CAPACITY */
 #define DISK_SET_ERROR_BY_FILE(fdp, i) fs_disk_seterror((fdp), (fs_file_getstatus((fdp)->io.fp[(i)]) == FILE_ERROR_DRIVE_RW_FAILURE) ? DISK_ERROR_DRIVE_RW_FAILURE : DISK_ERROR_MEMORY_ALLOCATE_FAILURE)
 
+inline bool_t fs_disk_setsuccess(FSDISK *fdp) {
+    fdp->status = DISK_SUCCESS;
+    return true_t;
+}
+
+inline bool_t fs_disk_seterror(FSDISK *fdp, disk_status status) {
+    fdp->status = status;
+    return false_t;
+}
+
 bool_t fs_disk_open(FSDISK **fdp) {
     counter_t num=0;
     bool_t one_exist = false_t;
@@ -31,12 +41,15 @@ bool_t fs_disk_open(FSDISK **fdp) {
         (*fdp)->io.fp = (FSFILE **)fs_malloc(sizeof(FSFILE *) * num);
         if(!(*fdp)->io.fp) return fs_disk_seterror(*fdp, DISK_ERROR_MEMORY_ALLOCATE_FAILURE);
         (*fdp)->io.fp_num = num;
-        (*fdp)->io.fp_current = 0;
+        //(*fdp)->io.fp_current = 0;
+        (*fdp)->io.fs_file_open = &fs_file_open;
+        (*fdp)->io.fs_file_read = &fs_file_read;
+        (*fdp)->io.fs_file_write = &fs_file_write;
         counter_t index=0;
         for(index_t i=0; i < num; ++i) {
             str_t path[MAX_PATH];
             sprintf(path, fs_disk_fileformat, i + 1);
-            if(!fs_file_open(&(*fdp)->io.fp[i], path))
+            if(!(*fdp)->io.fs_file_open(&(*fdp)->io.fp[i], path))
                 return DISK_SET_ERROR_BY_FILE(*fdp, i);
         }
         return fs_disk_setsuccess(*fdp);
@@ -44,10 +57,13 @@ bool_t fs_disk_open(FSDISK **fdp) {
         (*fdp)->io.fp = (FSFILE **)fs_malloc(sizeof(FSFILE *) * 1);
         if(!(*fdp)->io.fp) return fs_disk_seterror(*fdp, DISK_ERROR_MEMORY_ALLOCATE_FAILURE);
         (*fdp)->io.fp_num = 1;
-        (*fdp)->io.fp_current = 0;
+        //(*fdp)->io.fp_current = 0;
+        (*fdp)->io.fs_file_open = &fs_file_open;
+        (*fdp)->io.fs_file_read = &fs_file_read;
+        (*fdp)->io.fs_file_write = &fs_file_write;
         str_t path[MAX_PATH];
         sprintf(path, fs_disk_fileformat, 1);
-        if(!fs_file_open(&(*fdp)->io.fp[0], path))
+        if(!(*fdp)->io.fs_file_open(&(*fdp)->io.fp[0], path))
             return DISK_SET_ERROR_BY_FILE(*fdp, 0);
         else
             return fs_disk_setsuccess(*fdp);
@@ -69,7 +85,7 @@ bool_t fs_disk_read(FSDISK *fdp, sector_t begin, counter_t num, byte_t *buf) {
         fsize_t offset = (i==rbegin/fsize) ? rbegin-(((index_t)(rbegin/fsize))*fsize): 0;
         fsize_t rsize = (remain > fsize-offset) ? fsize - offset: remain;
         if(!fs_file_seek(fdp->io.fp[i], offset)) return DISK_SET_ERROR_BY_FILE(fdp, i);
-        if(!fs_file_read(fdp->io.fp[i], buf, rsize)) return DISK_SET_ERROR_BY_FILE(fdp, i);
+        if(!fdp->io.fs_file_read(fdp->io.fp[i], buf, rsize)) return DISK_SET_ERROR_BY_FILE(fdp, i);
         buf += rsize;
         if((remain -= rsize)==0) break;
         if(i+1==fdp->io.fp_num && remain > 0) return fs_disk_seterror(fdp, DISK_ERROR_PARAM);
@@ -93,7 +109,7 @@ bool_t fs_disk_write(FSDISK *fdp, sector_t begin, counter_t num, const byte_t *b
         }
         str_t path[MAX_PATH];
         sprintf(path, fs_disk_fileformat, i + 1);
-        if(!fs_file_open(&fdp->io.fp[i], path)) return DISK_SET_ERROR_BY_FILE(fdp, i);
+        if(!fdp->io.fs_file_open(&fdp->io.fp[i], path)) return DISK_SET_ERROR_BY_FILE(fdp, i);
     }
     for(index_t i=wbegin/fsize; i < fdp->io.fp_num; ++i) {
         fsize_t offset = (i==wbegin/fsize) ? wbegin-(((index_t)(wbegin/fsize))*fsize): 0;
@@ -102,7 +118,7 @@ bool_t fs_disk_write(FSDISK *fdp, sector_t begin, counter_t num, const byte_t *b
         assert(offset<fsize);
         assert(offset+wsize<=fsize);
         if(!fs_file_seek(fdp->io.fp[i], offset)) return DISK_SET_ERROR_BY_FILE(fdp, i);
-        if(!fs_file_write(fdp->io.fp[i], buf, wsize)) return DISK_SET_ERROR_BY_FILE(fdp, i);
+        if(!fdp->io.fs_file_write(fdp->io.fp[i], buf, wsize)) return DISK_SET_ERROR_BY_FILE(fdp, i);
         buf += wsize;
         if((remain -= wsize)==0) break;
         if(i+1==fdp->io.fp_num && remain > 0) return fs_disk_seterror(fdp, DISK_ERROR_PARAM);

@@ -35,7 +35,10 @@ typedef enum _tag_disk_status {
 typedef struct _tag_DISKIO {
     FSFILE **fp;
     index_t fp_num;
-    index_t fp_current;
+    //index_t fp_current;
+    bool_t (*fs_file_open)(FSFILE **fp, const char *name);
+    bool_t (*fs_file_read)(FSFILE *fp, byte_t *data, fsize_t size);
+    bool_t (*fs_file_write)(FSFILE *fp, const byte_t *data, fsize_t size);
 } DISKIO;
 
 typedef struct _tag_FSDISK {
@@ -43,14 +46,19 @@ typedef struct _tag_FSDISK {
     disk_status status;
 } FSDISK;
 
-static inline bool_t fs_disk_setsuccess(FSDISK *fdp) {
-    fdp->status = DISK_SUCCESS;
-    return true_t;
+static inline bool_t fs_disk_setf_open(FSDISK *fdp, bool_t (*fs_file_open)(FSFILE **fp, const char *name), bool_t ret) {
+    fdp->io.fs_file_open = fs_file_open;
+    return ret;
 }
 
-static inline bool_t fs_disk_seterror(FSDISK *fdp, disk_status status) {
-    fdp->status = status;
-    return false_t;
+static inline bool_t fs_disk_setf_read(FSDISK *fdp, bool_t (*fs_file_read)(FSFILE *fp, byte_t *data, fsize_t size), bool_t ret) {
+    fdp->io.fs_file_read = fs_file_read;
+    return ret;
+}
+
+static inline bool_t fs_disk_setf_write(FSDISK *fdp, bool_t (*fs_file_write)(FSFILE *fp, const byte_t *data, fsize_t size), bool_t ret) {
+    fdp->io.fs_file_write = fs_file_write;
+    return ret;
 }
 
 bool_t fs_disk_open(FSDISK **fdp);

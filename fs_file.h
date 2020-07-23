@@ -19,6 +19,7 @@ typedef enum _tag_file_status {
 
 typedef struct _tag_FSFILE {
     FILE *file_ptr;
+    index_t seek_last_pos;
     file_status status;
 } FSFILE;
 
@@ -37,9 +38,10 @@ static inline file_status fs_file_getstatus(FSFILE *fp) {
 }
 
 static inline bool_t fs_file_open(FSFILE **fp, const char *name) {
-    *fp = fs_malloc(sizeof(FSFILE));
+    *fp = (FSFILE *)fs_malloc(sizeof(FSFILE));
     if(!*fp) return false_t;
     (*fp)->file_ptr = NULL;
+    (*fp)->seek_last_pos = 0;
     bool_t exist = fs_file_isfile(name);
     if(exist)
         (*fp)->file_ptr = fopen(name, "rb+");
@@ -89,6 +91,7 @@ static inline bool_t fs_file_isfile(const char *name) {
     else return false_t;
 }
 
+/*
 static inline bool_t fs_file_getpos(FSFILE *fp, fpos_t *pos) {
     return fgetpos(fp->file_ptr, pos) == 0;
 }
@@ -96,13 +99,19 @@ static inline bool_t fs_file_getpos(FSFILE *fp, fpos_t *pos) {
 static inline bool_t fs_file_setpos(FSFILE *fp, const fpos_t *pos) {
     return fsetpos(fp->file_ptr, pos) == 0;
 }
+*/
 
 static inline bool_t fs_file_seek_top(FSFILE *fp) {
     return fseek(fp->file_ptr, 0, SEEK_SET) == 0;
 }
 
 static inline bool_t fs_file_seek(FSFILE *fp, index_t pos) {
+    fp->seek_last_pos = pos;
     return fseek(fp->file_ptr, (long)pos, SEEK_SET) == 0;
+}
+
+static inline index_t fs_file_getlastseek(FSFILE *fp) {
+    return fp->seek_last_pos;
 }
 
 static inline fsize_t fs_file_getsize() {

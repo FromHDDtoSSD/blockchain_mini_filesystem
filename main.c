@@ -8,6 +8,7 @@
 #include "fs_memory.h"
 #include "fs_file.h"
 #include "fs_disk.h"
+#include "fs_bitmap.h"
 #include "mini_filesystem.h"
 
 #ifdef WIN32
@@ -18,6 +19,7 @@
 
 INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+    /* [OK]
     MessageBoxA(NULL, "memory test.", "test 1", MB_OK);
     for(index_t i=0; i < 10000; ++i) {
         byte_t *ptr = fs_malloc(1024);
@@ -27,6 +29,7 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
             fs_free(ptr, true_t);
         }
     }
+    */
     /*
     {
         byte_t *ptr = fs_malloc(1024);
@@ -36,6 +39,7 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
     }
     */
 
+    /* [OK]
     MessageBoxA(NULL, "file test.", "test 2", MB_OK);
     FSFILE *fp;
     assert(fs_file_open(&fp, "D:\\fsdisk\\fsindex0001.dat"));
@@ -43,12 +47,14 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
     assert(data);
     assert(fs_file_read(fp, data, fs_file_getsize()));
     fs_free(data, fs_file_close(fp, true_t));
+    */
 
+    /* [OK]
     MessageBoxA(NULL, "disk test.", "test 3", MB_OK);
-    for(index_t test=0; test < 64; ++test) {
+    for(index_t test=0; test < 2; ++test) {
         const sector_t begin = rand() % 10000000;
         const counter_t num  = rand() % 94581920;
-        if(num==0) continue;
+        if(num==0) assert(0);
         const fsize_t bsize = num * SECTOR_SIZE;
         byte_t *wbuf = fs_malloc(bsize);
         assert(wbuf);
@@ -71,9 +77,56 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
         }
         fs_free(wbuf, true_t);
     }
+    */
 
-    
-
+    MessageBoxA(NULL, "bitmap test", "test4", MB_OK);
+    /* [OK]
+    {
+        FSBITMAP *bitmap;
+        FSDISK *fdp;
+        assert(fs_disk_open(&fdp));
+        assert(fs_bitmap_open(&bitmap, fdp));
+        fs_bitmap_close(bitmap, fs_disk_close(fdp, true_t));
+    }
+    */
+    for(index_t test = 0; test < 100; ++test) {
+        const sector_t begin = rand() % 10000000;
+        const counter_t num = rand() % 94581920;
+        if(BITMAP_SIZE/SECTOR_SIZE > begin%(fs_file_getsize()/SECTOR_SIZE)) assert(0);
+        if(num == 0) assert(0);
+        const fsize_t bsize = num * SECTOR_SIZE;
+        byte_t *wbuf = fs_malloc(bsize);
+        FSBITMAP *bitmap;
+        assert(wbuf);
+        {
+            FSDISK *fdp;
+            assert(fs_disk_open(&fdp));
+            assert(fs_bitmap_open(&bitmap, fdp));
+            for(index_t i = 0; i < bsize; ++i)
+                wbuf[i] = (byte_t)rand();
+            assert(fs_disk_write(fdp, begin, num, wbuf));
+            fs_disk_close(fdp, true_t);
+        }
+        {
+            FSDISK *fdp;
+            assert(fs_disk_open(&fdp));
+            byte_t *rbuf = fs_malloc(bsize);
+            assert(rbuf);
+            assert(fs_disk_read(fdp, begin, num, rbuf));
+            assert(memcmp(wbuf, rbuf, bsize) == 0);
+            BPB bpb;
+            bpb.bpb_offset = 0;
+            bool_t used = false_t;
+            cluster_t clus = begin / SECTORS_PER_CLUS;
+            assert(fs_bitmap_isused(bitmap, &bpb, clus, &used));
+            assert(used);
+            clus = (begin + num - 1)/SECTORS_PER_CLUS;
+            assert(fs_bitmap_isused(bitmap, &bpb, clus, &used));
+            assert(used);
+            fs_free(rbuf, fs_disk_close(fdp, true_t));
+        }
+        fs_free(wbuf, true_t);
+    }
 
 
 
