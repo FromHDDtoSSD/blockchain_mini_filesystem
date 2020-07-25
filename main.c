@@ -9,6 +9,8 @@
 #include "fs_file.h"
 #include "fs_disk.h"
 #include "fs_bitmap.h"
+#include "fs_cluster.h"
+#include "fs_bcr.h"
 #include "mini_filesystem.h"
 
 #ifdef WIN32
@@ -51,7 +53,7 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
 
     /* [OK]
     MessageBoxA(NULL, "disk test.", "test 3", MB_OK);
-    for(index_t test=0; test < 2; ++test) {
+    for(index_t test=0; test < 10; ++test) {
         const sector_t begin = rand() % 10000000;
         const counter_t num  = rand() % 94581920;
         if(num==0) assert(0);
@@ -79,7 +81,7 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
     }
     */
 
-    MessageBoxA(NULL, "bitmap test", "test4", MB_OK);
+    MessageBoxA(NULL, "cluster(bitmap) test", "test4", MB_OK);
     /* [OK]
     {
         FSBITMAP *bitmap;
@@ -89,9 +91,13 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
         fs_bitmap_close(bitmap, fs_disk_close(fdp, true_t));
     }
     */
+    /* [OK assert]
+    * Despite the fact that there is a Bitmap(FSBITMAP),
+    * tried to write data in units of sectors, so confirmed that the assert would come out normally.
+    *
     for(index_t test = 0; test < 100; ++test) {
         const sector_t begin = rand() % 10000000;
-        const counter_t num = rand() % 94581920;
+        const counter_t num  = rand() % 94581920;
         if(BITMAP_SIZE/SECTOR_SIZE > begin%(fs_file_getsize()/SECTOR_SIZE)) assert(0);
         if(num == 0) assert(0);
         const fsize_t bsize = num * SECTOR_SIZE;
@@ -125,8 +131,56 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
             assert(used);
             fs_free(rbuf, fs_disk_close(fdp, true_t));
         }
+        fs_free(wbuf, fs_bitmap_close(bitmap, true_t));
+    }
+    */
+    for(index_t test = 0; test < 3; ++test) {
+        const cluster_t begin = rand() % 100000;
+        const counter_t num   = rand() % 986000;
+        if(num == 0) assert(0);
+        const fsize_t bsize = num * CLUSTER_SIZE;
+        byte_t *wbuf = fs_malloc(bsize);
+        assert(wbuf);
+        BPB bpb;
+        bpb.bpb_offset = (sizeof(BITMAP_INFO)+sizeof(BCR))/SECTOR_SIZE * (rand()%150);
+        assert(bpb.bpb_offset%SECTORS_PER_CLUS==0);
+        {
+            FSDISK *fdp;
+            FSBITMAP *bp;
+            assert(fs_disk_open(&fdp));
+            assert(fs_bitmap_open(&bp, &bpb, fdp));
+            for(index_t i = 0; i < bsize; ++i)
+                wbuf[i]=(byte_t)rand();
+            assert(fs_cluster_diskwrite(fdp, bp, &bpb, begin, num, wbuf));
+            fs_disk_close(fdp, fs_bitmap_close(bp, true_t));
+        }
+        {
+            FSDISK *fdp;
+            FSBITMAP *bp;
+            assert(fs_disk_open(&fdp));
+            assert(fs_bitmap_open(&bp, &bpb, fdp));
+            byte_t *rbuf = fs_malloc(bsize);
+            assert(rbuf);
+            assert(fs_cluster_diskread(fdp, bp, &bpb, begin, num, rbuf));
+            assert(memcmp(wbuf, rbuf, bsize)==0);
+            bool_t used = false_t;
+            cluster_t clus = begin;
+            assert(fs_bitmap_isused(bp, clus, &used));
+            assert(used);
+            clus = begin + num - 1;
+            assert(fs_bitmap_isused(bp, clus, &used));
+            assert(used);
+            fs_free(rbuf, fs_disk_close(fdp, fs_bitmap_close(bp, true_t)));
+        }
         fs_free(wbuf, true_t);
     }
+
+
+
+
+
+
+
 
 
 

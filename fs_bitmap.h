@@ -11,18 +11,23 @@
 #include "fs_bpb.h"
 
 /*
+* ** fs_bitmap **
+*
 * The Bitmap records position to the used cluster.
+* The first 1st cluster of each chunk will be used for management to the Bitmap area.
 *
 * It is generated at the beginning of each chunk.
-* 0: unused, 1: used
+* 0x00: unused, 0x01: used
 *
-* sector: include Bitmap
-* cluster: NO include Bitmap
+* Note, The link between sectors and clusters strictly adheres to the following.
+* sector: include Bitmap area. It is assigned as an absolute position from the 0th chunk.
+* cluster: NO include Bitmap area. It is assigned as a relative position by BPB.
 */
 
-#define BITMAP_HEADER_OFFSET_BYTE 0
-#define BITS 8
-#define BITMAP_SIZE (CLUSTER_CAPACITY/BITS)
+#define BITMAP_HEADER_OFFSET_BYTE 0 /* This cannot be changed. */
+#define CLUSTER_PER_BITMAP 1
+#define SECTORS_PER_BITMAP (SECTORS_PER_CLUS*CLUSTER_PER_BITMAP)
+#define BITMAP_SIZE (SECTORS_PER_BITMAP*SECTOR_SIZE)
 
 #pragma pack(push, 1)
 typedef struct _tag_BITMAP_INFO {
@@ -38,11 +43,12 @@ typedef enum _tag_bitmap_status {
 
 typedef struct _tag_FSBITMAP {
     FSDISK *fdp;
+    const BPB *bpb;
     bitmap_status status;
 } FSBITMAP;
 
-bool_t fs_bitmap_open(FSBITMAP **bp, FSDISK *fdp);
+bool_t fs_bitmap_open(FSBITMAP **bp, const BPB *bpb, FSDISK *fdp);
 bool_t fs_bitmap_close(FSBITMAP *bp, bool_t ret);
-bool_t fs_bitmap_isused(FSBITMAP *bp, const BPB *bpb, cluster_t clus, bool_t *used);
+bool_t fs_bitmap_isused(FSBITMAP *bp, cluster_t clus, bool_t *used);
 
 #endif

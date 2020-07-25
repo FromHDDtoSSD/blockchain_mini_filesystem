@@ -8,16 +8,6 @@
 static const str_t *fs_disk_fileformat = "D:\\fsdisk\\fsindex%04d.dat"; /* size is fixed: SECTOR_SIZE * SECTORS_PER_CLUS * CLUSTER_CAPACITY */
 #define DISK_SET_ERROR_BY_FILE(fdp, i) fs_disk_seterror((fdp), (fs_file_getstatus((fdp)->io.fp[(i)]) == FILE_ERROR_DRIVE_RW_FAILURE) ? DISK_ERROR_DRIVE_RW_FAILURE : DISK_ERROR_MEMORY_ALLOCATE_FAILURE)
 
-inline bool_t fs_disk_setsuccess(FSDISK *fdp) {
-    fdp->status = DISK_SUCCESS;
-    return true_t;
-}
-
-inline bool_t fs_disk_seterror(FSDISK *fdp, disk_status status) {
-    fdp->status = status;
-    return false_t;
-}
-
 bool_t fs_disk_open(FSDISK **fdp) {
     counter_t num=0;
     bool_t one_exist = false_t;
@@ -97,8 +87,10 @@ bool_t fs_disk_write(FSDISK *fdp, sector_t begin, counter_t num, const byte_t *b
     const fsize_t fsize = fs_file_getsize();
     const fsize_t wbegin = begin * SECTOR_SIZE;
     fsize_t remain = num * SECTOR_SIZE;
-    const index_t reqfile = (wbegin + remain)/fsize + (((wbegin + remain)%fsize!=0) ? 1: 0); 
+    const index_t reqfile = (wbegin + remain)/fsize + (((wbegin + remain)%fsize!=0) ? 1: 0);
+    bool_t require_new_open = false_t;
     for(index_t i=fdp->io.fp_num; i < reqfile; ++i) {
+        require_new_open = true_t;
         if(i==fdp->io.fp_num) {
             FSFILE **tmp = (FSFILE **)fs_malloc(sizeof(FSFILE *) * reqfile);
             if(!tmp) return fs_disk_seterror(fdp, DISK_ERROR_MEMORY_ALLOCATE_FAILURE);
@@ -110,6 +102,10 @@ bool_t fs_disk_write(FSDISK *fdp, sector_t begin, counter_t num, const byte_t *b
         str_t path[MAX_PATH];
         sprintf(path, fs_disk_fileformat, i + 1);
         if(!fdp->io.fs_file_open(&fdp->io.fp[i], path)) return DISK_SET_ERROR_BY_FILE(fdp, i);
+    }
+    if(require_new_open) {
+        FSFILE *fpn = fdp->io.fp[reqfile - 1];
+        fpn->bpb_offset = NO_EXIST_BPB;
     }
     for(index_t i=wbegin/fsize; i < fdp->io.fp_num; ++i) {
         fsize_t offset = (i==wbegin/fsize) ? wbegin-(((index_t)(wbegin/fsize))*fsize): 0;

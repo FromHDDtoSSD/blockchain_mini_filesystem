@@ -20,6 +20,7 @@ typedef enum _tag_file_status {
 typedef struct _tag_FSFILE {
     FILE *file_ptr;
     index_t seek_last_pos;
+    sector_t bpb_offset;
     file_status status;
 } FSFILE;
 
@@ -42,6 +43,7 @@ static inline bool_t fs_file_open(FSFILE **fp, const char *name) {
     if(!*fp) return false_t;
     (*fp)->file_ptr = NULL;
     (*fp)->seek_last_pos = 0;
+    (*fp)->bpb_offset = 0;
     bool_t exist = fs_file_isfile(name);
     if(exist)
         (*fp)->file_ptr = fopen(name, "rb+");

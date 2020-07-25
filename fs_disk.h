@@ -24,6 +24,8 @@
 * chunk: This is one of each file distributed to "fsindex%04d.dat".
 */
 
+#define NO_EXIST_BPB -1
+
 typedef enum _tag_disk_status {
     DISK_SUCCESS = 0,
     DISK_ERROR_PARAM = 1,
@@ -45,6 +47,16 @@ typedef struct _tag_FSDISK {
     DISKIO io;
     disk_status status;
 } FSDISK;
+
+static inline bool_t fs_disk_setsuccess(FSDISK *fdp) {
+    fdp->status = DISK_SUCCESS;
+    return true_t;
+}
+
+static inline bool_t fs_disk_seterror(FSDISK *fdp, disk_status status) {
+    fdp->status = status;
+    return false_t;
+}
 
 static inline bool_t fs_disk_setf_open(FSDISK *fdp, bool_t (*fs_file_open)(FSFILE **fp, const char *name), bool_t ret) {
     fdp->io.fs_file_open = fs_file_open;
