@@ -88,9 +88,8 @@ bool_t fs_disk_write(FSDISK *fdp, sector_t begin, counter_t num, const byte_t *b
     const fsize_t wbegin = begin * SECTOR_SIZE;
     fsize_t remain = num * SECTOR_SIZE;
     const index_t reqfile = (wbegin + remain)/fsize + (((wbegin + remain)%fsize!=0) ? 1: 0);
-    bool_t require_new_open = false_t;
+    index_t prev_fp_num = fdp->io.fp_num;
     for(index_t i=fdp->io.fp_num; i < reqfile; ++i) {
-        require_new_open = true_t;
         if(i==fdp->io.fp_num) {
             FSFILE **tmp = (FSFILE **)fs_malloc(sizeof(FSFILE *) * reqfile);
             if(!tmp) return fs_disk_seterror(fdp, DISK_ERROR_MEMORY_ALLOCATE_FAILURE);
@@ -103,8 +102,8 @@ bool_t fs_disk_write(FSDISK *fdp, sector_t begin, counter_t num, const byte_t *b
         sprintf(path, fs_disk_fileformat, i + 1);
         if(!fdp->io.fs_file_open(&fdp->io.fp[i], path)) return DISK_SET_ERROR_BY_FILE(fdp, i);
     }
-    if(require_new_open) {
-        FSFILE *fpn = fdp->io.fp[reqfile - 1];
+    for(index_t i=prev_fp_num; i < reqfile; ++i) {
+        FSFILE *fpn = fdp->io.fp[i];
         fpn->bpb_offset = NO_EXIST_BPB;
     }
     for(index_t i=wbegin/fsize; i < fdp->io.fp_num; ++i) {

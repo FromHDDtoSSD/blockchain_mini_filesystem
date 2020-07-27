@@ -11,6 +11,7 @@
 #include "fs_bitmap.h"
 #include "fs_cluster.h"
 #include "fs_bcr.h"
+#include "fs_sha256.h"
 #include "mini_filesystem.h"
 
 #ifdef WIN32
@@ -81,7 +82,9 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
     }
     */
 
+    /* [OK]
     MessageBoxA(NULL, "cluster(bitmap) test", "test4", MB_OK);
+    */
     /* [OK]
     {
         FSBITMAP *bitmap;
@@ -134,6 +137,7 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
         fs_free(wbuf, fs_bitmap_close(bitmap, true_t));
     }
     */
+    /* [OK]
     for(index_t test = 0; test < 3; ++test) {
         const cluster_t begin = rand() % 100000;
         const counter_t num   = rand() % 986000;
@@ -174,12 +178,23 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
         }
         fs_free(wbuf, true_t);
     }
+    */
+
+    MessageBox(NULL, "hash(sha256) test", "test 5", MB_OK);
+    FSSHA256 *sp;
+    assert(fs_sha256_open(&sp));
+    fs_sha256_init(sp);
+    const str_t *str = "";
+    assert(fs_sha256_update(sp, 0, str));
+    assert(fs_sha256_final(sp));
+    fs_sha256_close(sp, true_t);
+
+    
 
 
 
-
-
-
+    
+    
 
 
 
