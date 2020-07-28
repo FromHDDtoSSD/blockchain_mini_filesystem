@@ -13,15 +13,61 @@
 /*
 * ** fs_btree **
 *
-* [INDEX_BUFFER] B-tree+ on disk.
+* [INDEX_BUFFER] B-tree on memory and, B-Tree+ on disk.
 *
 * filesystem implement.
-* fs_header(signature: SORA) => fs_hash(signature: HASH), fs_bitmap(signature: BITM), fs_btree(signature: INDX), mini_filesystem(signature: FILE) and fs_logfile(signature: LOGF)
 */
+
+typedef enum _tag_node_type {
+    n_unused,
+    n_node,
+    n_leaf,
+} node_type;
+
+typedef enum _tag_node_connected {
+    connect_no,
+    connected,
+} node_connected;
+
+typedef enum _tag_del_type {
+    del_no,
+    del_ok,
+    del_removed,
+    del_need_balance,
+} del_type;
+
+typedef struct _tag_NODE_CONFIRMED {
+    node_type type;
+    union {
+        struct {
+            counter_t num;
+            struct _tag_NODE **ptr;
+            index_t *begin_ptr;
+        } node;
+        struct {
+            index_t index;
+        } leaf;
+    } tree;
+} NODE_CONFIRMED;
+
+void fs_btree_initnode(NODE_CONFIRMED *node) {
+    node->tree.node.ptr = NULL;
+    node->tree.node.begin_ptr = NULL;
+}
+
+void fs_btree_insertnode(NODE_CONFIRMED *dest, const NODE_CONFIRMED *src) {
+    dest->type = src->type;
+    if(src->type == n_leaf)
+        dest->tree.leaf.index = src->tree.leaf.index;
+    else {
+        dest->tree.node.num = src->tree.node.num;
+        dest->tree.node.ptr = src->tree.node.ptr;
+        dest->tree.node.begin_ptr = dest->tree.node.begin_ptr;
+    }
+}
 
 typedef enum _tag_index_status {
     INDEX_SUCCESS = 0,
-    
 } index_status;
 
 #pragma pack(push, 1)

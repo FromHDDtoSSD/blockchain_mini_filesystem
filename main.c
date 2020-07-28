@@ -12,6 +12,7 @@
 #include "fs_cluster.h"
 #include "fs_bcr.h"
 #include "fs_sha256.h"
+#include "fs_fragment_vector.h"
 #include "mini_filesystem.h"
 
 #ifdef WIN32
@@ -180,6 +181,7 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
     }
     */
 
+    /* [OK]
     MessageBox(NULL, "hash(sha256) test", "test 5", MB_OK);
     FSSHA256 *sp;
     assert(fs_sha256_open(&sp));
@@ -188,12 +190,49 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
     assert(fs_sha256_update(sp, 0, str));
     assert(fs_sha256_final(sp));
     fs_sha256_close(sp, true_t);
+    */
 
-    
+    MessageBox(NULL, "fragmentvector on memory test", "test 6", MB_OK);
+    static VECTOR_DATA cmpAA;
+    memset(cmpAA.data, 0xAA, sizeof(cmpAA.data));
+    static VECTOR_DATA cmpCC;
+    memset(cmpCC.data, 0xCC, sizeof(cmpCC.data));
+    static VECTOR_DATA cmpEE;
+    memset(cmpEE.data, 0xEE, sizeof(cmpEE.data));
+    static VECTOR_DATA cmpFF;
+    memset(cmpFF.data, 0xFF, sizeof(cmpFF.data));
+    for(index_t test=0; test<30; ++test) {
+        FSFRAGVECTOR *fvp;
+        assert(fs_fragvector_open(&fvp, (test%2)?0:sizeof(VECTOR_DATA), sizeof(VECTOR_DATA)*(rand()%15)));
+        for(index_t i=0; i<51200; ++i) {
+            VECTOR_DATA vch;
+            if(0<=i&&i<100)
+                memset(vch.data, 0xAA, sizeof(vch.data));
+            else
+                memset(vch.data, 0xCC, sizeof(vch.data));
+            assert(fs_fragvector_insert1(fvp, &vch));
+        }
+        for(index_t i=0; i<51200; ++i) {
+            VECTOR_DATA *vch;
+            assert(fs_fragvector_insert2(fvp, &vch));
+            if(1245<=i&&i<3345)
+                memset(vch->data, 0xEE, sizeof(vch->data));
+            else
+                memset(vch->data, 0xFF, sizeof(vch->data));
+        }
+        for(index_t i=0; i<45000; ++i)
+            fs_fragvector_pop(fvp);
+        for(index_t i=67; i<100; ++i)
+            assert(memcmp(fs_fragvector_getdata(fvp, i)->data, cmpAA.data, sizeof(cmpAA.data))==0);
+        for(index_t i=51200+1245; i<51200+3345; ++i)
+            assert(memcmp(fs_fragvector_getdata(fvp, i)->data, cmpEE.data, sizeof(cmpEE.data))==0);
+        for(index_t i=51200+1245+3345; i<51200+1245+3345+3000; ++i)
+            assert(memcmp(fs_fragvector_getdata(fvp, i)->data, cmpFF.data, sizeof(cmpFF.data))==0);
+        fs_fragvector_close(fvp);
+    }
 
 
 
-    
     
 
 
