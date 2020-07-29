@@ -29,7 +29,7 @@ bool_t fs_disk_open(FSDISK **fdp) {
     if(!*fdp) return false_t;
     if(num > 0) {
         (*fdp)->io.fp = (FSFILE **)fs_malloc(sizeof(FSFILE *) * num);
-        if(!(*fdp)->io.fp) return fs_disk_seterror(*fdp, DISK_ERROR_MEMORY_ALLOCATE_FAILURE);
+        if(!(*fdp)->io.fp) return fs_free(*fdp, fs_disk_seterror(*fdp, DISK_ERROR_MEMORY_ALLOCATE_FAILURE));
         (*fdp)->io.fp_num = num;
         //(*fdp)->io.fp_current = 0;
         (*fdp)->io.fs_file_open = &fs_file_open;
@@ -45,7 +45,7 @@ bool_t fs_disk_open(FSDISK **fdp) {
         return fs_disk_setsuccess(*fdp);
     } else {
         (*fdp)->io.fp = (FSFILE **)fs_malloc(sizeof(FSFILE *) * 1);
-        if(!(*fdp)->io.fp) return fs_disk_seterror(*fdp, DISK_ERROR_MEMORY_ALLOCATE_FAILURE);
+        if(!(*fdp)->io.fp) return fs_free(*fdp, fs_disk_seterror(*fdp, DISK_ERROR_MEMORY_ALLOCATE_FAILURE));
         (*fdp)->io.fp_num = 1;
         //(*fdp)->io.fp_current = 0;
         (*fdp)->io.fs_file_open = &fs_file_open;

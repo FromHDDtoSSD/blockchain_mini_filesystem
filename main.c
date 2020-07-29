@@ -13,6 +13,7 @@
 #include "fs_bcr.h"
 #include "fs_sha256.h"
 #include "fs_fragment_vector.h"
+#include "fs_datastream.h"
 #include "mini_filesystem.h"
 
 #ifdef WIN32
@@ -192,6 +193,7 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
     fs_sha256_close(sp, true_t);
     */
 
+    /* [OK]
     MessageBox(NULL, "fragmentvector on memory test", "test 6", MB_OK);
     static VECTOR_DATA cmpAA;
     memset(cmpAA.data, 0xAA, sizeof(cmpAA.data));
@@ -226,11 +228,41 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
             assert(memcmp(fs_fragvector_getdata(fvp, i)->data, cmpAA.data, sizeof(cmpAA.data))==0);
         for(index_t i=51200+1245; i<51200+3345; ++i)
             assert(memcmp(fs_fragvector_getdata(fvp, i)->data, cmpEE.data, sizeof(cmpEE.data))==0);
-        for(index_t i=51200+1245+3345; i<51200+1245+3345+3000; ++i)
+        for(index_t i=51200+1245+3345; i<51200+1245+3345+3000; ++i) // Even when fs_fragvector_pop is executed, the allocated memory remains.
             assert(memcmp(fs_fragvector_getdata(fvp, i)->data, cmpFF.data, sizeof(cmpFF.data))==0);
-        fs_fragvector_close(fvp);
+        fs_fragvector_close(fvp, true_t);
     }
+    */
 
+    MessageBox(NULL, "datastream on memory test", "test 7", MB_OK);
+    typedef struct _tag_VECTOR_DATA2 {
+        VECTOR_DATA data1;
+        VECTOR_DATA data2;
+    } VECTOR_DATA2;
+    static VECTOR_DATA cmpCF;
+    static VECTOR_DATA2 cmp55FF;
+    memset(cmpCF.data, 0xCF, sizeof(cmpCF.data));
+    memset(cmp55FF.data1.data, 0x55, sizeof(cmp55FF.data1.data));
+    memset(cmp55FF.data2.data, 0xFF, sizeof(cmp55FF.data2.data));
+    FSDATASTREAM *dsp;
+    assert(fs_datastream_open(&dsp));
+    for(index_t i=0; i<102400; ++i)
+        assert(fs_datastream_lshift(dsp, &cmpCF, sizeof(VECTOR_DATA)));
+    for(index_t i=0; i<102400; ++i)
+        assert(fs_datastream_lshift(dsp, &cmp55FF, sizeof(VECTOR_DATA2)));
+    for(index_t i=0; i<102400; ++i) {
+        SRND *srnd;
+        assert(fs_datastream_rshift(dsp, &srnd, sizeof(VECTOR_DATA)));
+        assert(memcmp(fs_datastream_getdata(srnd), &cmpCF, sizeof(VECTOR_DATA))==0);
+        fs_datastream_free(srnd, true_t);
+    }
+    for(index_t i = 0; i<102400; ++i) {
+        SRND *srnd;
+        assert(fs_datastream_rshift(dsp, &srnd, sizeof(VECTOR_DATA2)));
+        assert(memcmp(fs_datastream_getdata(srnd), &cmp55FF, sizeof(VECTOR_DATA2))==0);
+        fs_datastream_free(srnd, true_t);
+    }
+    fs_datastream_close(dsp, true_t);
 
 
     

@@ -147,10 +147,10 @@ static inline bool_t fs_fragvector_open(FSFRAGVECTOR **fvp, fsize_t first_size, 
     uindex_t addIndex = fs_fragvector_getMsb32((*fvp)->addSize);
     uindex_t compIndex = fs_fragvector_getLsb32((*fvp)->addSize);
     (*fvp)->addSize = (addIndex!=compIndex)? 1<<++addIndex: 1<<addIndex;
-    if(realloc_size<(*fvp)->addSize) return fs_fragvector_seterror(*fvp, FRAGVECTOR_ERROR_PARAM);
+    if(realloc_size<(*fvp)->addSize) return fs_free(*fvp, fs_fragvector_seterror(*fvp, FRAGVECTOR_ERROR_PARAM));
     (*fvp)->numOfBufferAry = P_TABLE_NUM;
     (*fvp)->bufferArray = (byte_t **)fs_malloc(sizeof(byte_t *)*(*fvp)->numOfBufferAry);
-    if(!(*fvp)->bufferArray) return fs_fragvector_seterror(*fvp, FRAGVECTOR_ERROR_MEMORY_ALLOCATE_FAILURE);
+    if(!(*fvp)->bufferArray) return fs_free(*fvp, fs_fragvector_seterror(*fvp, FRAGVECTOR_ERROR_MEMORY_ALLOCATE_FAILURE));
     if(0<first_size) {
         uindex_t firstIndex = fs_fragvector_getMsb32((uindex_t)first_size);
         uindex_t reallocIndex = fs_fragvector_getMsb32((uindex_t)realloc_size);
@@ -159,7 +159,7 @@ static inline bool_t fs_fragvector_open(FSFRAGVECTOR **fvp, fsize_t first_size, 
         first_size = (firstIndex!=compFirst)? (fsize_t)1<<(firstIndex+1): (fsize_t)1<<firstIndex;
         realloc_size = (reallocIndex!=compRealloc)? (fsize_t)1<<(reallocIndex+1): (fsize_t)1<<reallocIndex;
         (*fvp)->bufferArray[0] = (byte_t *)fs_malloc(first_size);
-        if(!(*fvp)->bufferArray[0]) return fs_fragvector_seterror(*fvp, FRAGVECTOR_ERROR_MEMORY_ALLOCATE_FAILURE);
+        if(!(*fvp)->bufferArray[0]) return fs_free(*fvp, fs_free((*fvp)->bufferArray, fs_fragvector_seterror(*fvp, FRAGVECTOR_ERROR_MEMORY_ALLOCATE_FAILURE)));
         (*fvp)->firstArrayInsert = (index_t)first_size>>addIndex;
         (*fvp)->firstArrayShift = fs_fragvector_getMsb32((*fvp)->firstArrayInsert);
         (*fvp)->reallocArrayInsert = (index_t)realloc_size>>addIndex;
@@ -244,11 +244,11 @@ static inline bool_t fs_fragvector_clear(FSFRAGVECTOR *fvp) {
     return fs_fragvector_setsuccess(fvp);
 }
 
-static inline bool_t fs_fragvector_close(FSFRAGVECTOR *fvp) {
+static inline bool_t fs_fragvector_close(FSFRAGVECTOR *fvp, bool_t ret) {
     fs_fragvector_clear(fvp);
     for(index_t i=0; i<fvp->numOfUsedBufferAry; ++i)
         fs_free(fvp->bufferArray[i], true_t);
-    return fs_free(fvp, fs_free(fvp->bufferArray, true_t));
+    return fs_free(fvp, fs_free(fvp->bufferArray, ret));
 }
 
 #endif
