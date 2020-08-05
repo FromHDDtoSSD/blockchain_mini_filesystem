@@ -5,6 +5,9 @@
 #ifndef SORACHANCOIN_FS_TYPES
 #define SORACHANCOIN_FS_TYPES
 
+#include <stdio.h>
+#include <stdarg.h>
+
 #ifdef WIN32
 typedef short int16_t;
 typedef unsigned short uint16_t;
@@ -29,5 +32,19 @@ typedef int32_t fsize_t;
 typedef int32_t flag_t;
 typedef int64_t sector_t;
 typedef int64_t cluster_t;
+
+/*
+* Debug: fs_printf
+*
+*/
+
+static inline void fs_printf(const str_t *format, ...) {
+#ifdef DEBUG
+    va_list va;
+    va_start(va, format);
+    vprintf((const char *)format, va);
+    va_end(va);
+#endif
+}
 
 #endif

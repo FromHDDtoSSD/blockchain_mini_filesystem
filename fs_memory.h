@@ -5,6 +5,7 @@
 #ifndef SORACHANCOIN_FS_MEMORY
 #define SORACHANCOIN_FS_MEMORY
 
+#include <stdlib.h>
 #include <memory.h>
 #include <assert.h>
 #include "fs_types.h"

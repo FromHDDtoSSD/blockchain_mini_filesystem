@@ -68,12 +68,14 @@ static inline bool_t fs_datastream_lshift(FSDATASTREAM *dsp, const byte_t *data,
     return fs_datastream_setsuccess(dsp);
 }
 
-static inline bool_t fs_datastream_rshift(FSDATASTREAM *dsp, SRND **srnd, fsize_t size) {
+static inline bool_t fs_datastream_rstream(FSDATASTREAM *dsp, SRND **srnd, fsize_t size, index_t *index) {
+    if(!index) index=&dsp->dest_index;
     *srnd=(SRND *)fs_malloc(sizeof(SRND));
     if(!*srnd) return fs_datastream_seterror(dsp, DATASTREAM_ERROR_MEMORY_ALLOCATE_FAILURE);
     if(size<=sizeof(((VECTOR_DATA *)NULL)->data)) {
         (*srnd)->size=size;
-        (*srnd)->dest=(byte_t *)fs_fragvector_getdata(dsp->vch, dsp->dest_index++)+sizeof(byte_t)*offsetof(VECTOR_DATA,data);
+        (*srnd)->dest=(byte_t *)fs_fragvector_getdata(dsp->vch, (*index)++)+sizeof(byte_t)*offsetof(VECTOR_DATA,data);
+        dsp->current_size-=size;
         return fs_datastream_setsuccess(dsp);
     } else {
         (*srnd)->size=size;
@@ -82,13 +84,27 @@ static inline bool_t fs_datastream_rshift(FSDATASTREAM *dsp, SRND **srnd, fsize_
         byte_t *buf=(*srnd)->dest;
         while(size>0) {
             fsize_t cpsize=(size>sizeof(((VECTOR_DATA *)NULL)->data))? sizeof(((VECTOR_DATA *)NULL)->data): size;
-            memcpy(buf, fs_fragvector_getdata(dsp->vch, dsp->dest_index++), cpsize);
+            memcpy(buf, fs_fragvector_getdata(dsp->vch, (*index)++), cpsize);
             size-=cpsize;
             buf+=cpsize;
             assert(size>=0);
         }
+        dsp->current_size-=size;
         return fs_datastream_setsuccess(dsp);
     }
+}
+
+static inline bool_t fs_datastream_rshift(FSDATASTREAM *dsp, SRND **srnd, fsize_t size) {
+    return fs_datastream_rstream(dsp, srnd, size, NULL);
+}
+
+/* Note: The following function can be used when size is evenly stacked. */
+static inline bool_t fs_datastream_rgetdata(FSDATASTREAM *dsp, SRND **srnd, fsize_t size, index_t index) {
+    dsp->current_size+=size; /* It is not a ">> shift" by unload, so add the size beforehand. */
+    return fs_datastream_rstream(dsp, srnd, size, &index);
+}
+static inline index_t fs_datastream_rgetsize(FSDATASTREAM *dsp, fsize_t size) {
+    return fs_fragvector_getsize(dsp->vch)/(size/sizeof(VECTOR_DATA)+((size%sizeof(VECTOR_DATA)==0)?0:1));
 }
 
 static inline byte_t *fs_datastream_getdata(SRND *srnd) {

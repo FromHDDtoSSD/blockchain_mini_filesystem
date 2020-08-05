@@ -14,6 +14,7 @@
 #include "fs_sha256.h"
 #include "fs_fragment_vector.h"
 #include "fs_datastream.h"
+#include "fs_btree.h"
 #include "mini_filesystem.h"
 
 #ifdef WIN32
@@ -22,7 +23,8 @@
 
 #ifdef WIN32
 
-INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+//INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+int main(int argc, char *argv[])
 {
     /* [OK]
     MessageBoxA(NULL, "memory test.", "test 1", MB_OK);
@@ -234,6 +236,7 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
     }
     */
 
+    /* [OK]
     MessageBox(NULL, "datastream on memory test", "test 7", MB_OK);
     typedef struct _tag_VECTOR_DATA2 {
         VECTOR_DATA data1;
@@ -263,9 +266,133 @@ INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmd
         fs_datastream_free(srnd, true_t);
     }
     fs_datastream_close(dsp, true_t);
+    */
+
+    MessageBox(NULL, "btree on memory test", "test 8", MB_OK);
+    FSBTREE *fbp;
+    assert(fs_btree_open(&fbp, 18, sizeof(VECTOR_DATA), sizeof(VECTOR_DATA))); /* ksize: key max size, dsize: data max size */
+    static const char key[][sizeof(VECTOR_DATA)] = {
+        "dog",
+        "cat",
+        "drive",
+        "Quantum computer",
+        "What is Cryptocurrency?",
+    };
+    static const char data[][sizeof(VECTOR_DATA)] = {
+        "DOGE wo nageru no desu.",
+        "MIKE neko.",
+        "SORA",
+        "When we asked a specialized field acquaintance in Japan, he said that the half century would be impossible to realize. \
+Is that true? We always don't get reply that much, but ... this time was so early reply!",
+        "Oh ... I don't know even a flash memory. haha, this is a joke.",
+    };
+    for(index_t i=10000; 0<=i; --i) {
+        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
+        sprintf(_key, "%d__key", i);
+        sprintf(_data, "%d__data", i);
+        assert(fs_btree_insert(fbp, _key, _data));
+        assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
+    }
+    for(index_t i=0; i<3; ++i) {
+        assert(fs_btree_insert(fbp, key[i], data[i]));
+        assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
+    }
+    for(index_t i=10001; i<25000; ++i) {
+        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
+        sprintf(_key, "%d__key", i);
+        sprintf(_data, "%d__data", i);
+        assert(fs_btree_insert(fbp, _key, _data));
+        assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
+    }
+    assert(fs_btree_insert(fbp, key[3], data[3]));
+    assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
+    for(index_t i=8000; i<12000; ++i) {
+        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
+        sprintf(_key, "%d__key", i);
+        sprintf(_data, "%d__data", i);
+        assert(fs_btree_insert(fbp, _key, _data));
+        assert(fs_btree_getstatus(fbp)==BTREE_NO_ACCEPT); /* No double insert */
+    }
+    assert(fs_btree_insert(fbp, key[4], data[4]));
+    assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
+
+    {
+        SRND *srnd;
+        assert(fs_btree_getdata(fbp, key[2], &srnd));
+        assert(strcmp(data[2], (const char *)fs_datastream_getdata(srnd))==0);
+        fs_btree_free(srnd, true_t);
+    }
+    for(index_t i=0; i<12000; ++i) {
+        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
+        sprintf(_key, "%d__key", i);
+        sprintf(_data, "%d__data", i);
+        SRND *srnd;
+        btree_status status;
+        assert(fs_btree_getdata(fbp, _key, &srnd));
+        assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS); /* exist data */
+        assert(strcmp(_data, (const char *)fs_datastream_getdata(srnd))==0);
+        fs_btree_free(srnd, true_t);
+    }
+    for(index_t i=25000; i<32300; ++i) {
+        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
+        sprintf(_key, "%d__key", i);
+        sprintf(_data, "%d__data", i);
+        SRND *srnd;
+        assert(fs_btree_getdata(fbp, _key, &srnd));
+        assert(fs_btree_getstatus(fbp)==BTREE_NO_DATA); /* no data */
+    }
+
+    assert(fs_btree_remove(fbp, key[0]));
+    assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
+    assert(fs_btree_remove(fbp, key[1]));
+    assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
+    assert(fs_btree_remove(fbp, key[2]));
+    assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
+    {
+        SRND *srnd;
+        assert(fs_btree_getdata(fbp, key[3], &srnd));
+        assert(strcmp(data[3], (const char *)fs_datastream_getdata(srnd))==0);
+        assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
+        fs_btree_free(srnd, true_t);
+    }
+    for(index_t i=9300; i<17600; ++i) {
+        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
+        sprintf(_key, "%d__key", i);
+        sprintf(_data, "%d__data", i);
+        assert(fs_btree_remove(fbp, _key));
+        assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
+    }
+    for(index_t i=9800; i<17600; ++i) {
+        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
+        sprintf(_key, "%d__key", i);
+        sprintf(_data, "%d__data", i);
+        SRND *srnd;
+        assert(fs_btree_getdata(fbp, _key, &srnd));
+        assert(fs_btree_getstatus(fbp)==BTREE_NO_DATA); /* no data */
+    }
+    for(index_t i=17600; i<25000; ++i) {
+        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
+        sprintf(_key, "%d__key", i);
+        sprintf(_data, "%d__data", i);
+        SRND *srnd;
+        btree_status status;
+        assert(fs_btree_getdata(fbp, _key, &srnd));
+        assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS); /* exist data */
+        assert(strcmp(_data, (const char *)fs_datastream_getdata(srnd))==0);
+        fs_btree_free(srnd, true_t);
+    }
+
+    fs_btree_close(fbp, true_t);
 
 
-    
+
+
+
+
+
+
+
+
 
 
 
