@@ -5,13 +5,10 @@
 #ifndef SORACHANCOIN_FS_MEMORY
 #define SORACHANCOIN_FS_MEMORY
 
-# ifndef __STDC_WAIT_LIB_EXT1__
-#define __STDC_WAIT_LIB_EXT1__ 1
-# endif
+#include "fs_types.h"
 #include <stdlib.h>
 #include <memory.h>
 #include <assert.h>
-#include "fs_types.h"
 
 #define MEMORY_ASSERT_SIGNATURE "MIKE"
 #define MEMORY_ASSERT_SIG_LENGTH 4
@@ -41,11 +38,47 @@ static inline int memcmp_s(const void *_Src1, fsize_t _Src1Size, const void *_Sr
     return memcmp(_Src1, _Src2, _Src1Size);
 }
 
-# ifdef WIN32
 static inline errno_t memset_s(void *_Dst, fsize_t _DstSize, int _Val, fsize_t _SetSize) {
     assert(_DstSize>=_SetSize);
     assert(memcmp((const byte_t *)_Dst+_DstSize, MEMORY_ASSERT_SIGNATURE, MEMORY_ASSERT_SIG_LENGTH)==0);
     memset(_Dst, _Val, _SetSize);
+    return 0;
+}
+
+# if !defined(COMPILER_MSC)
+static inline errno_t memcpy_s(void *_Dst, fsize_t _DstSize, const void *_Src, fsize_t _SrcSize) {
+    assert(_DstSize>=_SrcSize);
+    assert(memcmp((const byte_t *)_Dst+_DstSize, MEMORY_ASSERT_SIGNATURE, MEMORY_ASSERT_SIG_LENGTH)==0);
+    memcpy(_Dst, _Src, _SrcSize);
+    return 0;
+}
+# endif
+
+# if !defined(COMPILER_MSC)
+static inline errno_t strcpy_s(const char *_Dst, fsize_t _DstSize, const char *_Src) {
+    assert(memcmp((const byte_t *)_Dst+_DstSize, MEMORY_ASSERT_SIGNATURE, MEMORY_ASSERT_SIG_LENGTH)==0);
+    strcpy(_Dst, _Src);
+    return 0;
+}
+# endif
+
+# if !defined(COMPILER_MSC)
+static inline errno_t sprintf_s(char *_Dst, fsize_t _DstSize, const char *_Format, ...) {
+    assert(memcmp((const byte_t *)_Dst+_DstSize, MEMORY_ASSERT_SIGNATURE, MEMORY_ASSERT_SIG_LENGTH)==0);
+    va_list va;
+    va_start(va, _Format);
+    vsprintf(_Dst, (const char *)_Format, va);
+    va_end(va);
+    return 0;
+}
+# endif
+
+# if !defined(COMPILER_MSC)
+static inline errno_t printf_s(const char *_Format, ...) {
+    va_list va;
+    va_start(va, _Format);
+    vprintf((const char *)_Format, va);
+    va_end(va);
     return 0;
 }
 # endif

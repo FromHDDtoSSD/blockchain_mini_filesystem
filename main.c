@@ -11,12 +11,14 @@
 #include "fs_fragment_vector.h"
 #include "fs_datastream.h"
 #include "fs_btree.h"
+#include "fs_sha256.h"
 
 //[OK]#define FS_TEST1
 //[OK]#define FS_TEST2
 //[OK]#define FS_TEST3
 //[OK]#define FS_TEST4
-#define FS_TEST5
+//[OK]#define FS_TEST5
+#define FS_TEST6
 
 #ifdef WIN32
 #include <windows.h>
@@ -322,7 +324,22 @@ Is that true? We always don't get reply that much, but ... this time was so earl
     fs_btree_close(fbp, b_true);
 #endif
 
-
+#ifdef FS_TEST6
+# ifdef WIN32
+    MessageBoxA(NULL, "sha256 test.", "test 6", MB_OK);
+# else
+    printf("test6: sha256 test.\n");
+# endif
+    FSSHA256 *sp;
+    assert(fs_sha256_open(&sp));
+    fs_sha256_init(sp);
+    const str_t *str = "";
+    assert(fs_sha256_update(sp, 0, (const byte_t *)str));
+    assert(fs_sha256_final(sp));
+    fs_printf("hash[blank]: %s\n", fs_sha256_gethashstr(sp));
+    fs_sha256_close(sp, b_true);
+    fs_sha256_test();
+#endif
 
 
 

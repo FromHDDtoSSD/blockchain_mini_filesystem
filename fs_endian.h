@@ -303,4 +303,69 @@ static inline uint64_t le64toh(uint64_t little_endian_64bits)
 
 #endif // WORDS_BIGENDIAN
 
+static inline uint16_t ReadLE16(const byte_t *ptr)
+{
+    uint16_t x;
+    memcpy_s((char *)&x, sizeof(uint16_t), ptr, sizeof(uint16_t));
+    return le16toh(x);
+}
+
+static inline uint32_t ReadLE32(const byte_t *ptr)
+{
+    uint32_t x;
+    memcpy_s((char *)&x, sizeof(uint32_t), ptr, sizeof(uint32_t));
+    return le32toh(x);
+}
+
+static inline uint64_t ReadLE64(const byte_t *ptr)
+{
+    uint64_t x;
+    memcpy_s((char *)&x, sizeof(uint64_t), ptr, sizeof(uint64_t));
+    return le64toh(x);
+}
+
+static inline void WriteLE16(byte_t *ptr, uint16_t x)
+{
+    uint16_t v = htole16(x);
+    memcpy_s(ptr, sizeof(uint16_t), (const char *)&v, sizeof(uint16_t));
+}
+
+static inline void WriteLE32(byte_t *ptr, uint32_t x)
+{
+    uint32_t v = htole32(x);
+    memcpy_s(ptr, sizeof(uint32_t), (const char *)&v, sizeof(uint32_t));
+}
+
+static inline void WriteLE64(byte_t *ptr, uint64_t x)
+{
+    uint64_t v = htole64(x);
+    memcpy_s(ptr, sizeof(uint64_t), (const char *)&v, sizeof(uint64_t));
+}
+
+static inline uint32_t ReadBE32(const byte_t *ptr)
+{
+    uint32_t x;
+    memcpy_s((char *)&x, sizeof(uint32_t), ptr, sizeof(uint32_t));
+    return be32toh(x);
+}
+
+static inline uint64_t ReadBE64(const byte_t *ptr)
+{
+    uint64_t x;
+    memcpy_s((char *)&x, sizeof(uint64_t), ptr, sizeof(uint64_t));
+    return be64toh(x);
+}
+
+static inline void WriteBE32(byte_t *ptr, uint32_t x)
+{
+    uint32_t v = htobe32(x);
+    memcpy_s(ptr, sizeof(uint32_t), (const char *)&v, sizeof(uint32_t));
+}
+
+static inline void  WriteBE64(byte_t *ptr, uint64_t x)
+{
+    uint64_t v = htobe64(x);
+    memcpy_s(ptr, sizeof(uint64_t), (const char *)&v, sizeof(uint64_t));
+}
+
 #endif // SORACHANCOIN_FS_ENDIAN

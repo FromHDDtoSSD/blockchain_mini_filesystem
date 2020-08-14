@@ -5,8 +5,31 @@
 #ifndef SORACHANCOIN_FS_TYPES
 #define SORACHANCOIN_FS_TYPES
 
+#define __STDC_WAIT_LIB_EXT1__ 1
 #include <stdio.h>
 #include <stdarg.h>
+
+/*
+** Compiler type
+**
+*/
+#ifdef __INTEL_COMPILER
+# define WIN32
+# define COMPILER_INTEL
+#elif _MSC_VER
+# define WIN32
+# define COMPILER_MSC
+#elif __clang__
+# define COMPILER_CLANG
+#elif __GNUC__
+# define COMPILER_GNU
+#elif __MINGW32__
+# define WIN32
+# define COMPILER_MINGW
+#else
+# define WIN32
+# define COMPILER_OTHER
+#endif
 
 #ifdef WIN32
 typedef short int16_t;
@@ -39,7 +62,21 @@ typedef int64_t sector_t;
 typedef int64_t cluster_t;
 typedef unsigned int uindex_t;
 
-/** Debug: fs_printf */
+/* 
+** stdio secure functions
+**
+*/
+# if !defined(COMPILER_MSC)
+static inline errno_t fopen_s(FILE **fp, const char *_FileName, const char *_Mode) {
+    *fp=fopen(_FileName, _Mode);
+    return (fp!=NULL)? 0: 1;
+}
+# endif
+
+/*
+** Debug: fs_printf
+**
+*/
 static inline void fs_printf(const str_t *format, ...) {
 #ifdef DEBUG
     va_list va;
