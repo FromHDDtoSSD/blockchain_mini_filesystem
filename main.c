@@ -2,273 +2,212 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
+#pragma warning(disable: 4100)
+#include "fs_const.h"
 #include "fs_memory.h"
 #include "fs_file.h"
 #include "fs_disk.h"
 #include "fs_bitmap.h"
-#include "fs_cluster.h"
-#include "fs_bcr.h"
-#include "fs_sha256.h"
 #include "fs_fragment_vector.h"
 #include "fs_datastream.h"
 #include "fs_btree.h"
-#include "mini_filesystem.h"
+
+//[OK]#define FS_TEST1
+//[OK]#define FS_TEST2
+//[OK]#define FS_TEST3
+//[OK]#define FS_TEST4
+#define FS_TEST5
 
 #ifdef WIN32
-#include "windows.h"
+#include <windows.h>
 #endif
 
-#ifdef WIN32
+static const str_t *target_dir = "D:\\fsdisk";
 
-//INT_PTR WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
-int main(int argc, char *argv[])
-{
-    /* [OK]
+int main(int argc, char *argv[]) {
+#ifdef FS_TEST1
+# ifdef WIN32
     MessageBoxA(NULL, "memory test.", "test 1", MB_OK);
+# else
+    printf("test1: memory test.\n");
+# endif
     for(index_t i=0; i < 10000; ++i) {
         byte_t *ptr = fs_malloc(1024);
+        byte_t *ptr2 = fs_malloc(1024);
         if(ptr) {
             for(index_t k=0; k < 1024; ++k)
                 ptr[k] = (byte_t)rand();
-            fs_free(ptr, true_t);
+            memcpy_s(ptr2, 1024, ptr, 1024);
+            assert(memcmp_s(ptr, 1024, ptr2, 1024)==0);
+            fs_free(ptr2, fs_free(ptr, b_true));
         }
     }
-    */
     /*
     {
         byte_t *ptr = fs_malloc(1024);
         for(index_t k = 0; k < 1025; ++k)
             ptr[k] = (byte_t)rand();
-        fs_free(ptr, true_t); // OK assert
+        fs_free(ptr, b_true); // OK assert
     }
     */
+#endif
 
-    /* [OK]
+#ifdef FS_TEST2
+# ifdef WIN32
     MessageBoxA(NULL, "file test.", "test 2", MB_OK);
+# else
+    printf("test2: file test.\n");
+# endif
     FSFILE *fp;
     assert(fs_file_open(&fp, "D:\\fsdisk\\fsindex0001.dat"));
     byte_t *data = fs_malloc(fs_file_getsize());
     assert(data);
     assert(fs_file_read(fp, data, fs_file_getsize()));
-    fs_free(data, fs_file_close(fp, true_t));
-    */
+    fs_free(data, fs_file_close(fp, b_true));
+#endif
 
-    /* [OK]
+#ifdef FS_TEST3
+# ifdef WIN32
     MessageBoxA(NULL, "disk test.", "test 3", MB_OK);
+# else
+    printf("test3: disk test.\n");
+# endif
     for(index_t test=0; test < 10; ++test) {
         const sector_t begin = rand() % 10000000;
         const counter_t num  = rand() % 94581920;
         if(num==0) assert(0);
-        const fsize_t bsize = num * SECTOR_SIZE;
+        const fsize_t bsize = num * BYTES_PER_SECTOR;
         byte_t *wbuf = fs_malloc(bsize);
         assert(wbuf);
         {
-            FSDISK *fdp;
-            assert(fs_disk_open(&fdp));
-            for(index_t i = 0; i < bsize; ++i)
-                wbuf[i] = (byte_t)rand();
-            assert(fs_disk_write(fdp, begin, num, wbuf));
-            fs_disk_close(fdp, true_t);
+            FSDISK *fdp1;
+            assert(fs_disk_open(&fdp1, target_dir));
+            for(index_t i = 0; i < bsize; ++i) wbuf[i] = (byte_t)rand();
+            assert(fs_disk_write(fdp1, begin, num, wbuf));
+            fs_disk_close(fdp1, b_true);
         }
         {
-            FSDISK *fdp;
-            assert(fs_disk_open(&fdp));
+            FSDISK *fdp2;
+            assert(fs_disk_open(&fdp2, target_dir));
             byte_t *rbuf = fs_malloc(bsize);
             assert(rbuf);
-            assert(fs_disk_read(fdp, begin, num, rbuf));
-            assert(memcmp(wbuf, rbuf, bsize) == 0);
-            fs_free(rbuf, fs_disk_close(fdp, true_t));
-        }
-        fs_free(wbuf, true_t);
-    }
-    */
-
-    /* [OK]
-    MessageBoxA(NULL, "cluster(bitmap) test", "test4", MB_OK);
-    */
-    /* [OK]
-    {
-        FSBITMAP *bitmap;
-        FSDISK *fdp;
-        assert(fs_disk_open(&fdp));
-        assert(fs_bitmap_open(&bitmap, fdp));
-        fs_bitmap_close(bitmap, fs_disk_close(fdp, true_t));
-    }
-    */
-    /* [OK assert]
-    * Despite the fact that there is a Bitmap(FSBITMAP),
-    * tried to write data in units of sectors, so confirmed that the assert would come out normally.
-    *
-    for(index_t test = 0; test < 100; ++test) {
-        const sector_t begin = rand() % 10000000;
-        const counter_t num  = rand() % 94581920;
-        if(BITMAP_SIZE/SECTOR_SIZE > begin%(fs_file_getsize()/SECTOR_SIZE)) assert(0);
-        if(num == 0) assert(0);
-        const fsize_t bsize = num * SECTOR_SIZE;
-        byte_t *wbuf = fs_malloc(bsize);
-        FSBITMAP *bitmap;
-        assert(wbuf);
-        {
-            FSDISK *fdp;
-            assert(fs_disk_open(&fdp));
-            assert(fs_bitmap_open(&bitmap, fdp));
-            for(index_t i = 0; i < bsize; ++i)
-                wbuf[i] = (byte_t)rand();
-            assert(fs_disk_write(fdp, begin, num, wbuf));
-            fs_disk_close(fdp, true_t);
-        }
-        {
-            FSDISK *fdp;
-            assert(fs_disk_open(&fdp));
-            byte_t *rbuf = fs_malloc(bsize);
-            assert(rbuf);
-            assert(fs_disk_read(fdp, begin, num, rbuf));
-            assert(memcmp(wbuf, rbuf, bsize) == 0);
-            BPB bpb;
-            bpb.bpb_offset = 0;
-            bool_t used = false_t;
-            cluster_t clus = begin / SECTORS_PER_CLUS;
-            assert(fs_bitmap_isused(bitmap, &bpb, clus, &used));
-            assert(used);
-            clus = (begin + num - 1)/SECTORS_PER_CLUS;
-            assert(fs_bitmap_isused(bitmap, &bpb, clus, &used));
-            assert(used);
-            fs_free(rbuf, fs_disk_close(fdp, true_t));
-        }
-        fs_free(wbuf, fs_bitmap_close(bitmap, true_t));
-    }
-    */
-    /* [OK]
-    for(index_t test = 0; test < 3; ++test) {
-        const cluster_t begin = rand() % 100000;
-        const counter_t num   = rand() % 986000;
-        if(num == 0) assert(0);
-        const fsize_t bsize = num * CLUSTER_SIZE;
-        byte_t *wbuf = fs_malloc(bsize);
-        assert(wbuf);
-        BPB bpb;
-        bpb.bpb_offset = (sizeof(BITMAP_INFO)+sizeof(BCR))/SECTOR_SIZE * (rand()%150);
-        assert(bpb.bpb_offset%SECTORS_PER_CLUS==0);
-        {
-            FSDISK *fdp;
-            FSBITMAP *bp;
-            assert(fs_disk_open(&fdp));
-            assert(fs_bitmap_open(&bp, &bpb, fdp));
-            for(index_t i = 0; i < bsize; ++i)
-                wbuf[i]=(byte_t)rand();
-            assert(fs_cluster_diskwrite(fdp, bp, &bpb, begin, num, wbuf));
-            fs_disk_close(fdp, fs_bitmap_close(bp, true_t));
-        }
-        {
-            FSDISK *fdp;
-            FSBITMAP *bp;
-            assert(fs_disk_open(&fdp));
-            assert(fs_bitmap_open(&bp, &bpb, fdp));
-            byte_t *rbuf = fs_malloc(bsize);
-            assert(rbuf);
-            assert(fs_cluster_diskread(fdp, bp, &bpb, begin, num, rbuf));
+            assert(fs_disk_read(fdp2, begin, num, rbuf));
             assert(memcmp(wbuf, rbuf, bsize)==0);
-            bool_t used = false_t;
-            cluster_t clus = begin;
-            assert(fs_bitmap_isused(bp, clus, &used));
-            assert(used);
-            clus = begin + num - 1;
-            assert(fs_bitmap_isused(bp, clus, &used));
-            assert(used);
-            fs_free(rbuf, fs_disk_close(fdp, fs_bitmap_close(bp, true_t)));
+            fs_free(rbuf, fs_disk_close(fdp2, b_true));
         }
-        fs_free(wbuf, true_t);
-    }
-    */
-
-    /* [OK]
-    MessageBox(NULL, "hash(sha256) test", "test 5", MB_OK);
-    FSSHA256 *sp;
-    assert(fs_sha256_open(&sp));
-    fs_sha256_init(sp);
-    const str_t *str = "";
-    assert(fs_sha256_update(sp, 0, str));
-    assert(fs_sha256_final(sp));
-    fs_sha256_close(sp, true_t);
-    */
-
-    /* [OK]
-    MessageBox(NULL, "fragmentvector on memory test", "test 6", MB_OK);
-    static VECTOR_DATA cmpAA;
-    memset(cmpAA.data, 0xAA, sizeof(cmpAA.data));
-    static VECTOR_DATA cmpCC;
-    memset(cmpCC.data, 0xCC, sizeof(cmpCC.data));
-    static VECTOR_DATA cmpEE;
-    memset(cmpEE.data, 0xEE, sizeof(cmpEE.data));
-    static VECTOR_DATA cmpFF;
-    memset(cmpFF.data, 0xFF, sizeof(cmpFF.data));
-    for(index_t test=0; test<30; ++test) {
-        FSFRAGVECTOR *fvp;
-        assert(fs_fragvector_open(&fvp, (test%2)?0:sizeof(VECTOR_DATA), sizeof(VECTOR_DATA)*(rand()%15)));
-        for(index_t i=0; i<51200; ++i) {
-            VECTOR_DATA vch;
-            if(0<=i&&i<100)
-                memset(vch.data, 0xAA, sizeof(vch.data));
-            else
-                memset(vch.data, 0xCC, sizeof(vch.data));
-            assert(fs_fragvector_insert1(fvp, &vch));
+        {
+            FSDISK *fdpA;
+            assert(fs_disk_open(&fdpA, target_dir));
+            byte_t *rbuf = fs_malloc(bsize);
+            assert(rbuf);
+            assert(fs_disk_read(fdpA, begin, num, rbuf));
+            assert(memcmp(wbuf, rbuf, bsize)==0);
+            fs_free(rbuf, fs_disk_close(fdpA, b_true));
         }
-        for(index_t i=0; i<51200; ++i) {
-            VECTOR_DATA *vch;
-            assert(fs_fragvector_insert2(fvp, &vch));
-            if(1245<=i&&i<3345)
-                memset(vch->data, 0xEE, sizeof(vch->data));
-            else
-                memset(vch->data, 0xFF, sizeof(vch->data));
+        {
+            FSDISK *fdpB;
+            assert(fs_disk_open(&fdpB, target_dir));
+            for(index_t i = 0; i < bsize; ++i) wbuf[i] = (byte_t)rand();
+            assert(fs_disk_write(fdpB, begin, num, wbuf));
+            fs_disk_close(fdpB, b_true);
         }
-        for(index_t i=0; i<45000; ++i)
-            fs_fragvector_pop(fvp);
-        for(index_t i=67; i<100; ++i)
-            assert(memcmp(fs_fragvector_getdata(fvp, i)->data, cmpAA.data, sizeof(cmpAA.data))==0);
-        for(index_t i=51200+1245; i<51200+3345; ++i)
-            assert(memcmp(fs_fragvector_getdata(fvp, i)->data, cmpEE.data, sizeof(cmpEE.data))==0);
-        for(index_t i=51200+1245+3345; i<51200+1245+3345+3000; ++i) // Even when fs_fragvector_pop is executed, the allocated memory remains.
-            assert(memcmp(fs_fragvector_getdata(fvp, i)->data, cmpFF.data, sizeof(cmpFF.data))==0);
-        fs_fragvector_close(fvp, true_t);
+        {
+            FSDISK *fdpC;
+            assert(fs_disk_open(&fdpC, target_dir));
+            byte_t *rbuf = fs_malloc(bsize);
+            assert(rbuf);
+            assert(fs_disk_read(fdpC, begin, num, rbuf));
+            assert(memcmp(wbuf, rbuf, bsize)==0);
+            fs_free(rbuf, fs_disk_close(fdpC, b_true));
+        }
+        {
+            FSDISK *fdpD;
+            assert(fs_disk_open(&fdpD, target_dir));
+            assert(fs_disk_write(fdpD, -1*begin, (num>=600)? 60: num, wbuf));
+            assert(fs_disk_write(fdpD, -1*begin, num, wbuf));
+            assert(fs_disk_read(fdpD, -1*begin, num, wbuf));
+            fs_disk_close(fdpD, b_true);
+            assert(fs_disk_open(&fdpD, target_dir));
+            byte_t *rbuf=fs_malloc(bsize);
+            assert(rbuf);
+            assert(fs_disk_read(fdpD, -1*begin, num, rbuf));
+            assert(memcmp(rbuf+BYTES_PER_SECTOR, wbuf+BYTES_PER_SECTOR, bsize-BYTES_PER_SECTOR)==0);
+            fs_free(rbuf, fs_disk_close(fdpD, b_true));
+        }
+        {
+            FSDISK *fdpD;
+            assert(fs_disk_open(&fdpD, target_dir));
+            assert(fs_disk_write(fdpD, -1*begin, (num>=600)? 60: num, wbuf));
+            assert(fs_disk_write(fdpD, -1*begin, num, wbuf));
+            assert(fs_disk_read(fdpD, -1*begin, num, wbuf));
+            fs_disk_close(fdpD, b_true);
+        }
+        {
+            FSDISK *fdpF;
+            assert(fs_disk_open(&fdpF, target_dir));
+            byte_t *rbuf=fs_malloc(bsize);
+            assert(rbuf);
+            assert(fs_disk_read(fdpF, -1*begin, num, rbuf));
+            assert(memcmp(rbuf+BYTES_PER_SECTOR, wbuf+BYTES_PER_SECTOR, bsize-BYTES_PER_SECTOR)==0);
+            fs_free(rbuf, fs_disk_close(fdpF, b_true));
+        }
+        fs_free(wbuf, b_true);
     }
-    */
+#endif
 
-    /* [OK]
-    MessageBox(NULL, "datastream on memory test", "test 7", MB_OK);
-    typedef struct _tag_VECTOR_DATA2 {
-        VECTOR_DATA data1;
-        VECTOR_DATA data2;
-    } VECTOR_DATA2;
-    static VECTOR_DATA cmpCF;
-    static VECTOR_DATA2 cmp55FF;
-    memset(cmpCF.data, 0xCF, sizeof(cmpCF.data));
-    memset(cmp55FF.data1.data, 0x55, sizeof(cmp55FF.data1.data));
-    memset(cmp55FF.data2.data, 0xFF, sizeof(cmp55FF.data2.data));
-    FSDATASTREAM *dsp;
-    assert(fs_datastream_open(&dsp));
-    for(index_t i=0; i<102400; ++i)
-        assert(fs_datastream_lshift(dsp, &cmpCF, sizeof(VECTOR_DATA)));
-    for(index_t i=0; i<102400; ++i)
-        assert(fs_datastream_lshift(dsp, &cmp55FF, sizeof(VECTOR_DATA2)));
-    for(index_t i=0; i<102400; ++i) {
-        SRND *srnd;
-        assert(fs_datastream_rshift(dsp, &srnd, sizeof(VECTOR_DATA)));
-        assert(memcmp(fs_datastream_getdata(srnd), &cmpCF, sizeof(VECTOR_DATA))==0);
-        fs_datastream_free(srnd, true_t);
+#ifdef FS_TEST4
+# ifdef WIN32
+    MessageBoxA(NULL, "bitmap sector test.", "test 4", MB_OK);
+# else
+    printf("test4: bitmap test.\n");
+# endif
+    for(index_t test = 0; test < 30; ++test) {
+        const sector_t begin = rand() % 100000;
+        const sector_t num   = rand() % 9860000;
+        if(num == 0) assert(0);
+        const llsize_t bsize=num*BYTES_PER_SECTOR;
+        byte_t *wbuf = fs_malloc((fsize_t)bsize);
+        assert(wbuf);
+        {
+            FSDISK *fdp;
+            FSBITMAP *bp;
+            assert(fs_disk_open(&fdp, target_dir));
+            assert(fs_bitmap_open(&bp, fdp));
+            for(index_t i=0; i<bsize; ++i) wbuf[i]=(byte_t)rand();
+            assert(fs_diskwith_bitmap_write(bp, begin, num, wbuf));
+            if(_BITS_PER_SECTOR<=begin) { /* Note: No write bitmap, 0 - 4095 */
+                bool_t used=b_false;
+                assert(fs_bitmap_getmask(bp, begin, &used));
+                assert(used);
+                assert(fs_bitmap_getmask_someusedrange(bp, begin, num, &used));
+                assert(used);
+                assert(fs_bitmap_getmask_allusedrange(bp, begin, num, &used));
+                assert(used);
+                sector_t nsec;
+                assert(fs_bitmap_getmask_freesector(bp, rand()%154367, &nsec));
+                fs_printf("new free sector: %I64d\n", nsec);
+                assert(fs_diskwith_bitmap_erase(bp, begin, num/2));
+                assert(fs_bitmap_getmask_allusedrange(bp, begin+num/2, num/2, &used));
+                assert(used);
+                assert(fs_bitmap_getmask_allusedrange(bp, begin, num/2, &used));
+                assert(!used);
+                fs_disk_close(fdp, fs_bitmap_close(bp, b_true));
+            } else {
+                bool_t used=b_false;
+                assert(fs_bitmap_getmask(bp, begin, &used)==b_false);
+                fs_disk_close(fdp, fs_bitmap_close(bp, b_true));
+            }
+        }
+        fs_free(wbuf, b_true);
     }
-    for(index_t i = 0; i<102400; ++i) {
-        SRND *srnd;
-        assert(fs_datastream_rshift(dsp, &srnd, sizeof(VECTOR_DATA2)));
-        assert(memcmp(fs_datastream_getdata(srnd), &cmp55FF, sizeof(VECTOR_DATA2))==0);
-        fs_datastream_free(srnd, true_t);
-    }
-    fs_datastream_close(dsp, true_t);
-    */
+#endif
 
-    MessageBox(NULL, "btree on memory test", "test 8", MB_OK);
+#ifdef FS_TEST5
+# ifdef WIN32
+    MessageBoxA(NULL, "fragment vector, datastream, btree on memory test.", "test 5", MB_OK);
+# else
+    printf("test5: fragment vector, datastream, btree on memory test.\n");
+# endif
     FSBTREE *fbp;
     assert(fs_btree_open(&fbp, 18, sizeof(VECTOR_DATA), sizeof(VECTOR_DATA))); /* ksize: key max size, dsize: data max size */
     static const char key[][sizeof(VECTOR_DATA)] = {
@@ -287,56 +226,55 @@ Is that true? We always don't get reply that much, but ... this time was so earl
         "Oh ... I don't know even a flash memory. haha, this is a joke.",
     };
     for(index_t i=10000; 0<=i; --i) {
-        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
-        sprintf(_key, "%d__key", i);
-        sprintf(_data, "%d__data", i);
+        str_t _key[sizeof(VECTOR_DATA)]={0}; byte_t _data[sizeof(VECTOR_DATA)]={0};
+        sprintf_s(_key, ARRAYLEN(_key), "%d__key", i);
+        sprintf_s((str_t *)_data, ARRAYLEN(_data), "%d__data", i);
         assert(fs_btree_insert(fbp, _key, _data));
         assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
     }
     for(index_t i=0; i<3; ++i) {
-        assert(fs_btree_insert(fbp, key[i], data[i]));
+        assert(fs_btree_insert(fbp, key[i], (const byte_t *)data[i]));
         assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
     }
     for(index_t i=10001; i<25000; ++i) {
-        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
-        sprintf(_key, "%d__key", i);
-        sprintf(_data, "%d__data", i);
+        str_t _key[sizeof(VECTOR_DATA)]={0}; byte_t _data[sizeof(VECTOR_DATA)]={0};
+        sprintf_s(_key, ARRAYLEN(_key), "%d__key", i);
+        sprintf_s((str_t *)_data, ARRAYLEN(_data), "%d__data", i);
         assert(fs_btree_insert(fbp, _key, _data));
         assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
     }
-    assert(fs_btree_insert(fbp, key[3], data[3]));
+    assert(fs_btree_insert(fbp, key[3], (const byte_t *)data[3]));
     assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
     for(index_t i=8000; i<12000; ++i) {
-        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
-        sprintf(_key, "%d__key", i);
-        sprintf(_data, "%d__data", i);
+        str_t _key[sizeof(VECTOR_DATA)]={0}; byte_t _data[sizeof(VECTOR_DATA)]={0};
+        sprintf_s(_key, ARRAYLEN(_key), "%d__key", i);
+        sprintf_s((str_t *)_data, ARRAYLEN(_data), "%d__data", i);
         assert(fs_btree_insert(fbp, _key, _data));
         assert(fs_btree_getstatus(fbp)==BTREE_NO_ACCEPT); /* No double insert */
     }
-    assert(fs_btree_insert(fbp, key[4], data[4]));
+    assert(fs_btree_insert(fbp, key[4], (const byte *)data[4]));
     assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
 
     {
         SRND *srnd;
         assert(fs_btree_getdata(fbp, key[2], &srnd));
         assert(strcmp(data[2], (const char *)fs_datastream_getdata(srnd))==0);
-        fs_btree_free(srnd, true_t);
+        fs_btree_free(srnd, b_true);
     }
     for(index_t i=0; i<12000; ++i) {
-        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
-        sprintf(_key, "%d__key", i);
-        sprintf(_data, "%d__data", i);
+        str_t _key[sizeof(VECTOR_DATA)]={0}; byte_t _data[sizeof(VECTOR_DATA)]={0};
+        sprintf_s(_key, ARRAYLEN(_key), "%d__key", i);
+        sprintf_s((str_t *)_data, ARRAYLEN(_data), "%d__data", i);
         SRND *srnd;
-        btree_status status;
         assert(fs_btree_getdata(fbp, _key, &srnd));
         assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS); /* exist data */
-        assert(strcmp(_data, (const char *)fs_datastream_getdata(srnd))==0);
-        fs_btree_free(srnd, true_t);
+        assert(strcmp((const str_t *)_data, (const char *)fs_datastream_getdata(srnd))==0);
+        fs_btree_free(srnd, b_true);
     }
     for(index_t i=25000; i<32300; ++i) {
-        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
-        sprintf(_key, "%d__key", i);
-        sprintf(_data, "%d__data", i);
+        str_t _key[sizeof(VECTOR_DATA)]={0}; byte_t _data[sizeof(VECTOR_DATA)]={0};
+        sprintf_s(_key, ARRAYLEN(_key), "%d__key", i);
+        sprintf_s((str_t *)_data, ARRAYLEN(_data), "%d__data", i);
         SRND *srnd;
         assert(fs_btree_getdata(fbp, _key, &srnd));
         assert(fs_btree_getstatus(fbp)==BTREE_NO_DATA); /* no data */
@@ -353,59 +291,45 @@ Is that true? We always don't get reply that much, but ... this time was so earl
         assert(fs_btree_getdata(fbp, key[3], &srnd));
         assert(strcmp(data[3], (const char *)fs_datastream_getdata(srnd))==0);
         assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
-        fs_btree_free(srnd, true_t);
+        fs_btree_free(srnd, b_true);
     }
     for(index_t i=9300; i<17600; ++i) {
-        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
-        sprintf(_key, "%d__key", i);
-        sprintf(_data, "%d__data", i);
+        str_t _key[sizeof(VECTOR_DATA)]={0}; byte_t _data[sizeof(VECTOR_DATA)]={0};
+        sprintf_s(_key, ARRAYLEN(_key), "%d__key", i);
+        sprintf_s((str_t *)_data, ARRAYLEN(_data), "%d__data", i);
         assert(fs_btree_remove(fbp, _key));
         assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS);
     }
     for(index_t i=9800; i<17600; ++i) {
-        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
-        sprintf(_key, "%d__key", i);
-        sprintf(_data, "%d__data", i);
+        str_t _key[sizeof(VECTOR_DATA)]={0}; byte_t _data[sizeof(VECTOR_DATA)]={0};
+        sprintf_s(_key, ARRAYLEN(_key), "%d__key", i);
+        sprintf_s((str_t *)_data, ARRAYLEN(_data), "%d__data", i);
         SRND *srnd;
         assert(fs_btree_getdata(fbp, _key, &srnd));
         assert(fs_btree_getstatus(fbp)==BTREE_NO_DATA); /* no data */
     }
     for(index_t i=17600; i<25000; ++i) {
-        str_t _key[sizeof(VECTOR_DATA)]={0}, _data[sizeof(VECTOR_DATA)]={0};
-        sprintf(_key, "%d__key", i);
-        sprintf(_data, "%d__data", i);
+        str_t _key[sizeof(VECTOR_DATA)]={0}; byte_t _data[sizeof(VECTOR_DATA)]={0};
+        sprintf_s(_key, ARRAYLEN(_key), "%d__key", i);
+        sprintf_s((str_t *)_data, ARRAYLEN(_data), "%d__data", i);
         SRND *srnd;
-        btree_status status;
         assert(fs_btree_getdata(fbp, _key, &srnd));
         assert(fs_btree_getstatus(fbp)==BTREE_SUCCESS); /* exist data */
-        assert(strcmp(_data, (const char *)fs_datastream_getdata(srnd))==0);
-        fs_btree_free(srnd, true_t);
+        assert(strcmp((const str_t *)_data, (const char *)fs_datastream_getdata(srnd))==0);
+        fs_btree_free(srnd, b_true);
     }
 
-    fs_btree_close(fbp, true_t);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    MessageBoxA(NULL, "completed all tests.", "success", MB_OK);
-    return 0;
-}
-
-#else
-
-int main(int argc, char *argv[])
-{
-    return 0;
-}
-
+    fs_btree_close(fbp, b_true);
 #endif
+
+
+
+
+
+#ifdef WIN32
+    MessageBoxA(NULL, "all test.", "complete success.", MB_OK);
+#else
+    printf("all test: complete success.\n");
+#endif
+    return 0;
+}

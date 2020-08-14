@@ -21,23 +21,25 @@ typedef unsigned __int64 uint64_t;
 ** Note: Must use types below, because if other types using, may NOT confirm by Blockchain.
 **
 ** OK: fsize_t size, counter_t counter, bool_t flag
-** BAD: size_t size, int counter, bool flag
+** NG: size_t size, int counter, bool flag
 */
 typedef unsigned char byte_t;
+typedef unsigned char aldstbyte_t; /* when allocated destination buffer. */
 typedef int32_t bool_t;
-typedef int32_t counter_t;
+typedef int32_t num_t;
+typedef int64_t counter_t;
 typedef int32_t index_t;
-typedef unsigned char str_t;
+typedef int32_t fbit_t;
+typedef char str_t;
 typedef int32_t fsize_t;
+typedef int64_t foffset_t;
+typedef int64_t llsize_t;
 typedef int32_t flag_t;
 typedef int64_t sector_t;
 typedef int64_t cluster_t;
+typedef unsigned int uindex_t;
 
-/*
-* Debug: fs_printf
-*
-*/
-
+/** Debug: fs_printf */
 static inline void fs_printf(const str_t *format, ...) {
 #ifdef DEBUG
     va_list va;

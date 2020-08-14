@@ -8,6 +8,7 @@
 #include "fs_memory.h"
 #include "fs_types.h"
 #include "fs_const.h"
+#include "fs_endian.h"
 
 typedef unsigned int uindex_t;
 #define V_ALIGNMENT sizeof(double)
@@ -58,37 +59,9 @@ typedef unsigned int uindex_t;
 *
 */
 
-static inline uindex_t fs_fragvector_getnumbits(uindex_t val) {
-    val=(val&0x55555555)+((val>>1)&0x55555555);
-    val=(val&0x33333333)+((val>>2)&0x33333333);
-    val=(val&0x0f0f0f0f)+((val>>4)&0x0f0f0f0f);
-    val=(val&0x00ff00ff)+((val>>8)&0x00ff00ff);
-    return (val&0x0000ffff)+((val>>16)&0x0000ffff);
-}
-
-static inline uindex_t fs_fragvector_getLsb32(uindex_t val) {
-    uindex_t tmp=val;
-    val|=(val<<1);
-    val|=(val<<2);
-    val|=(val<<4);
-    val|=(val<<8);
-    val|=(val<<16);
-    return (tmp==0) ? 0: 32-fs_fragvector_getnumbits(val);
-}
-
-static inline uindex_t fs_fragvector_getMsb32(uindex_t val) {
-    uindex_t tmp=val;
-    val|=(val>>1);
-    val|=(val>>2);
-    val|=(val>>4);
-    val|=(val>>8);
-    val|=(val>>16);
-    return (tmp==0) ? 0: fs_fragvector_getnumbits(val)-1;
-}
-
 #pragma pack(push, 1)
 typedef struct _tag_VECTOR_DATA {
-    byte_t data[CLUSTER_SIZE];
+    byte_t data[BYTES_PER_CLUSTER];
 } VECTOR_DATA;
 #pragma pack(pop)
 
@@ -116,18 +89,18 @@ typedef struct _tag_FS_FRAGMENT_VECTOR {
 
 static inline bool_t fs_fragvector_setsuccess(FSFRAGVECTOR *fvp) {
     fvp->status = FRAGVECTOR_SUCCESS;
-    return true_t;
+    return b_true;
 }
 
 static inline bool_t fs_fragvector_seterror(FSFRAGVECTOR *fvp, fragvector_status status) {
     fvp->status = status;
-    return false_t;
+    return b_false;
 }
 
 /* Note: There is NO problem even if used first_size to 0. */
 static inline bool_t fs_fragvector_open(FSFRAGVECTOR **fvp, fsize_t first_size, fsize_t realloc_size) {
     *fvp = (FSFRAGVECTOR *)fs_malloc(sizeof(FSFRAGVECTOR));
-    if(!*fvp) return false_t;
+    if(!*fvp) return b_false;
     (*fvp)->numOfBufferAry = 0;
     (*fvp)->numOfUsedBufferAry = 0;
     (*fvp)->firstArrayInsert = 0;
@@ -144,35 +117,35 @@ static inline bool_t fs_fragvector_open(FSFRAGVECTOR **fvp, fsize_t first_size, 
     (*fvp)->alignSize = V_ALIGNMENT-(sizeof(VECTOR_DATA)&(V_ALIGNMENT-1));
     ((*fvp)->alignSize==V_ALIGNMENT)? (*fvp)->alignSize=0:0;
     (*fvp)->addSize = sizeof(VECTOR_DATA)+(*fvp)->alignSize;
-    uindex_t addIndex = fs_fragvector_getMsb32((*fvp)->addSize);
-    uindex_t compIndex = fs_fragvector_getLsb32((*fvp)->addSize);
+    uindex_t addIndex = fs_getMsb32((*fvp)->addSize);
+    uindex_t compIndex = fs_getLsb32((*fvp)->addSize);
     (*fvp)->addSize = (addIndex!=compIndex)? 1<<++addIndex: 1<<addIndex;
     if(realloc_size<(*fvp)->addSize) return fs_free(*fvp, fs_fragvector_seterror(*fvp, FRAGVECTOR_ERROR_PARAM));
     (*fvp)->numOfBufferAry = P_TABLE_NUM;
     (*fvp)->bufferArray = (byte_t **)fs_malloc(sizeof(byte_t *)*(*fvp)->numOfBufferAry);
     if(!(*fvp)->bufferArray) return fs_free(*fvp, fs_fragvector_seterror(*fvp, FRAGVECTOR_ERROR_MEMORY_ALLOCATE_FAILURE));
     if(0<first_size) {
-        uindex_t firstIndex = fs_fragvector_getMsb32((uindex_t)first_size);
-        uindex_t reallocIndex = fs_fragvector_getMsb32((uindex_t)realloc_size);
-        uindex_t compFirst = fs_fragvector_getLsb32((uindex_t)first_size);
-        uindex_t compRealloc = fs_fragvector_getLsb32((uindex_t)realloc_size);
+        uindex_t firstIndex = fs_getMsb32((uindex_t)first_size);
+        uindex_t reallocIndex = fs_getMsb32((uindex_t)realloc_size);
+        uindex_t compFirst = fs_getLsb32((uindex_t)first_size);
+        uindex_t compRealloc = fs_getLsb32((uindex_t)realloc_size);
         first_size = (firstIndex!=compFirst)? (fsize_t)1<<(firstIndex+1): (fsize_t)1<<firstIndex;
         realloc_size = (reallocIndex!=compRealloc)? (fsize_t)1<<(reallocIndex+1): (fsize_t)1<<reallocIndex;
         (*fvp)->bufferArray[0] = (byte_t *)fs_malloc(first_size);
         if(!(*fvp)->bufferArray[0]) return fs_free(*fvp, fs_free((*fvp)->bufferArray, fs_fragvector_seterror(*fvp, FRAGVECTOR_ERROR_MEMORY_ALLOCATE_FAILURE)));
         (*fvp)->firstArrayInsert = (index_t)first_size>>addIndex;
-        (*fvp)->firstArrayShift = fs_fragvector_getMsb32((*fvp)->firstArrayInsert);
+        (*fvp)->firstArrayShift = fs_getMsb32((*fvp)->firstArrayInsert);
         (*fvp)->reallocArrayInsert = (index_t)realloc_size>>addIndex;
-        (*fvp)->reallocArrayShift = fs_fragvector_getMsb32((*fvp)->reallocArrayInsert);
+        (*fvp)->reallocArrayShift = fs_getMsb32((*fvp)->reallocArrayInsert);
     } else {
-        unsigned int reallocIndex = fs_fragvector_getMsb32((unsigned int)realloc_size);
-        unsigned int compRealloc = fs_fragvector_getLsb32((unsigned int)realloc_size);
+        unsigned int reallocIndex = fs_getMsb32((unsigned int)realloc_size);
+        unsigned int compRealloc = fs_getLsb32((unsigned int)realloc_size);
         realloc_size = (reallocIndex!=compRealloc)? (fsize_t)1<<(reallocIndex+1): (fsize_t)1<<reallocIndex;
         (*fvp)->bufferArray[0] = NULL;
         (*fvp)->firstArrayInsert = 0;
         (*fvp)->firstArrayShift = 0;
         (*fvp)->reallocArrayInsert = (index_t)realloc_size>>addIndex;
-        (*fvp)->reallocArrayShift = fs_fragvector_getMsb32((*fvp)->reallocArrayInsert);
+        (*fvp)->reallocArrayShift = fs_getMsb32((*fvp)->reallocArrayInsert);
     }
     (*fvp)->numOfUsedBufferAry = 1;
     (*fvp)->maxArraySize = first_size;
@@ -188,7 +161,7 @@ static inline bool_t fs_fragvector_realloc(FSFRAGVECTOR *fvp) {
         fvp->numOfBufferAry+=P_TABLE_NUM;
         byte_t **tmp = (byte_t **)fs_malloc(sizeof(byte_t *)*fvp->numOfBufferAry);
         memcpy(tmp, fvp->bufferArray, numofOldAry*sizeof(byte_t *));
-        fs_free(fvp->bufferArray, true_t); fvp->bufferArray = tmp;
+        fs_free(fvp->bufferArray, b_true); fvp->bufferArray = tmp;
     }
     fvp->maxArraySize += fvp->reallocSize;
     ++(fvp->numOfUsedBufferAry);
@@ -247,7 +220,7 @@ static inline bool_t fs_fragvector_clear(FSFRAGVECTOR *fvp) {
 static inline bool_t fs_fragvector_close(FSFRAGVECTOR *fvp, bool_t ret) {
     fs_fragvector_clear(fvp);
     for(index_t i=0; i<fvp->numOfUsedBufferAry; ++i)
-        fs_free(fvp->bufferArray[i], true_t);
+        fs_free(fvp->bufferArray[i], b_true);
     return fs_free(fvp, fs_free(fvp->bufferArray, ret));
 }
 

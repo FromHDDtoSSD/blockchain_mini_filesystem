@@ -37,17 +37,17 @@ typedef struct _tag_STREAM_HANDLE {
 
 static inline bool_t fs_datastream_setsuccess(FSDATASTREAM *dsp) {
     dsp->status = DATASTREAM_SUCCESS;
-    return true_t;
+    return b_true;
 }
 
 static inline bool_t fs_datastream_seterror(FSDATASTREAM *dsp, datastream_status status) {
     dsp->status = status;
-    return false_t;
+    return b_false;
 }
 
 static inline bool_t fs_datastream_open(FSDATASTREAM **dsp) {
     *dsp = (FSDATASTREAM *)fs_malloc(sizeof(FSDATASTREAM));
-    if(!*dsp) return false_t;
+    if(!*dsp) return b_false;
     if(!fs_fragvector_open(&(*dsp)->vch, 0, sizeof(VECTOR_DATA))) return fs_free(*dsp, fs_datastream_seterror(*dsp, DATASTREAM_ERROR_MEMORY_ALLOCATE_FAILURE));
     (*dsp)->current_size=0;
     (*dsp)->dest_index=0;

@@ -5,6 +5,9 @@
 #ifndef SORACHANCOIN_FS_MEMORY
 #define SORACHANCOIN_FS_MEMORY
 
+# ifndef __STDC_WAIT_LIB_EXT1__
+#define __STDC_WAIT_LIB_EXT1__ 1
+# endif
 #include <stdlib.h>
 #include <memory.h>
 #include <assert.h>
@@ -30,5 +33,21 @@ static inline bool_t fs_free(void *ptr, bool_t ret) {
     }
     return ret;
 }
+
+static inline int memcmp_s(const void *_Src1, fsize_t _Src1Size, const void *_Src2, fsize_t _Src2Size) {
+    assert(_Src1Size==_Src2Size);
+    assert(memcmp((const byte_t *)_Src1+_Src1Size, MEMORY_ASSERT_SIGNATURE, MEMORY_ASSERT_SIG_LENGTH)==0);
+    assert(memcmp((const byte_t *)_Src2+_Src2Size, MEMORY_ASSERT_SIGNATURE, MEMORY_ASSERT_SIG_LENGTH)==0);
+    return memcmp(_Src1, _Src2, _Src1Size);
+}
+
+# ifdef WIN32
+static inline errno_t memset_s(void *_Dst, fsize_t _DstSize, int _Val, fsize_t _SetSize) {
+    assert(_DstSize>=_SetSize);
+    assert(memcmp((const byte_t *)_Dst+_DstSize, MEMORY_ASSERT_SIGNATURE, MEMORY_ASSERT_SIG_LENGTH)==0);
+    memset(_Dst, _Val, _SetSize);
+    return 0;
+}
+# endif
 
 #endif

@@ -36,7 +36,7 @@ typedef enum _tag_rem_status {
     r_node_no,
     r_node_ok,
     r_node_removed,
-    r_node_need_marge,
+    r_node_need_merge,
     r_node_error,
 } rem_status;
 
@@ -45,11 +45,11 @@ typedef struct _tag_B_NODE {
     union {
         struct {
             counter_t num;
-            struct _tag_NODE **node_ptr;
-            index_t *begin_ptr;
+            struct _tag_B_NODE **node_ptr;
+            counter_t *begin_ptr;
         } node;
         struct {
-            index_t vch_index;
+            counter_t vch_index;
         } leaf;
     } tree;
 } B_NODE;
@@ -57,7 +57,7 @@ typedef struct _tag_B_NODE {
 typedef struct _tag_B_INSERT {
     B_NODE **p_node;
     B_NODE **n_node;
-    index_t *n_index;
+    counter_t *n_index;
 } B_INSERT;
 
 typedef enum _tag_btree_status {
@@ -74,7 +74,7 @@ typedef struct _tag_FSBTREE {
     fsize_t ksize;
     fsize_t dsize;
     B_NODE *root;
-    index_t overlap_index;
+    counter_t overlap_index;
     counter_t dimension;
     counter_t halfdim;
     counter_t allocnode_count;
@@ -98,22 +98,22 @@ static inline void fs_btree_setfunc(FSBTREE *fbp, index_t (*fkeyequ)(const str_t
 
 static inline bool_t fs_btree_setsuccess(FSBTREE *fbp) {
     fbp->status = BTREE_SUCCESS;
-    return true_t;
+    return b_true;
 }
 
 static inline bool_t fs_btree_setsuccess_nodata(FSBTREE *fbp) {
     fbp->status = BTREE_NO_DATA;
-    return true_t;
+    return b_true;
 }
 
 static inline bool_t fs_btree_setsuccess_noaccept(FSBTREE *fbp) {
     fbp->status = BTREE_NO_ACCEPT;
-    return true_t;
+    return b_true;
 }
 
 static inline bool_t fs_btree_seterror(FSBTREE *fbp, btree_status status) {
     fbp->status = status;
-    return false_t;
+    return b_false;
 }
 
 static inline btree_status fs_btree_getstatus(FSBTREE *fbp) {
@@ -122,7 +122,7 @@ static inline btree_status fs_btree_getstatus(FSBTREE *fbp) {
 
 static inline bool_t fs_btree_open(FSBTREE **fbp, counter_t dimension, fsize_t ksize, fsize_t dsize) { /* ksize(string): key size(bytes, include '\0'), dsize(binary): data size(bytes) */
     (*fbp) = (FSBTREE *)fs_malloc(sizeof(FSBTREE));
-    if(!*fbp) return false_t;
+    if(!*fbp) return b_false;
     if(!fs_datastream_open(&(*fbp)->key)) return fs_free(*fbp, fs_btree_seterror(*fbp, BTREE_ERROR_MEMORY_ALLOCATE_FAILURE));
     if(!fs_datastream_open(&(*fbp)->vch)) return fs_free(*fbp, fs_datastream_close((*fbp)->key, fs_btree_seterror(*fbp, BTREE_ERROR_MEMORY_ALLOCATE_FAILURE)));
     (*fbp)->ksize=ksize;
@@ -142,7 +142,7 @@ static inline index_t fs_btree_free(SRND *srnd, index_t ret) {
 }
 
 static inline void *fs_btree_ptrfree(SRND *srnd, void *ret) {
-    fs_datastream_free(srnd, true_t);
+    fs_datastream_free(srnd, b_true);
     return ret;
 }
 
@@ -154,31 +154,31 @@ static inline void fs_btree_debugprint(FSBTREE *fbp, const B_NODE *node, const s
 #endif
 }
 
-static inline index_t fs_btree_getlocate(FSBTREE *fbp, const B_NODE *p, const str_t *key) { /* Note: B-tree "plus" */
+static inline counter_t fs_btree_getlocate(FSBTREE *fbp, const B_NODE *p, const str_t *key) { /* Note: B-tree "plus" */
     assert(2<=p->tree.node.num);
     if(p->tree.node.num==2) {
         SRND *srnd;
-        if(!fs_datastream_rgetdata(fbp->key, &srnd, fbp->ksize, p->tree.node.begin_ptr[1])) return INDEX_ERROR;
+        if(!fs_datastream_rgetdata(fbp->key, &srnd, fbp->ksize, (index_t)p->tree.node.begin_ptr[1])) return INDEX_ERROR;
         return fbp->fkeylt((const str_t *)fs_datastream_getdata(srnd), key)? 1: 0;
     } else {
-        index_t left=0;
-        index_t right=p->tree.node.num-1;
+        counter_t left=0;
+        counter_t right=p->tree.node.num-1;
         while(left<right) {
             SRND *srnd0, *srnd1;
-            index_t center = (left+right)>>1;
-            if(!fs_datastream_rgetdata(fbp->key, &srnd0, fbp->ksize, p->tree.node.begin_ptr[center])) return INDEX_ERROR;
-            index_t a = fbp->fkeylt((const str_t *)fs_datastream_getdata(srnd0), key, fbp->ksize); fs_btree_free(srnd0, true_t);
-            if(!fs_datastream_rgetdata(fbp->key, &srnd1, fbp->ksize, p->tree.node.begin_ptr[center+1])) return fs_btree_free(srnd0, INDEX_ERROR);
-            index_t b = fbp->fkeylt((const str_t *)fs_datastream_getdata(srnd1), key, fbp->ksize); fs_btree_free(srnd1, true_t);
+            counter_t center = (left+right)>>1;
+            if(!fs_datastream_rgetdata(fbp->key, &srnd0, fbp->ksize, (index_t)p->tree.node.begin_ptr[center])) return INDEX_ERROR;
+            index_t a = fbp->fkeylt((const str_t *)fs_datastream_getdata(srnd0), key); fs_btree_free(srnd0, b_true);
+            if(!fs_datastream_rgetdata(fbp->key, &srnd1, fbp->ksize, (index_t)p->tree.node.begin_ptr[center+1])) return fs_btree_free(srnd0, INDEX_ERROR);
+            index_t b = fbp->fkeylt((const str_t *)fs_datastream_getdata(srnd1), key); fs_btree_free(srnd1, b_true);
             if(a&&(b==0)) return center;
             if(a==0) right=center-1;
             else left=center+1;
         }
         if(0<left) return left;
         SRND *srnd0, *srnd1;
-        if(!fs_datastream_rgetdata(fbp->key, &srnd0, fbp->ksize, p->tree.node.begin_ptr[0])) return INDEX_ERROR;
+        if(!fs_datastream_rgetdata(fbp->key, &srnd0, fbp->ksize, (index_t)p->tree.node.begin_ptr[0])) return INDEX_ERROR;
         index_t a = fbp->fkeylt((const str_t *)fs_datastream_getdata(srnd0), key);
-        if(!fs_datastream_rgetdata(fbp->key, &srnd1, fbp->ksize, p->tree.node.begin_ptr[1])) return fs_btree_free(srnd0, INDEX_ERROR);
+        if(!fs_datastream_rgetdata(fbp->key, &srnd1, fbp->ksize, (index_t)p->tree.node.begin_ptr[1])) return fs_btree_free(srnd0, INDEX_ERROR);
         index_t b = fbp->fkeylt((const str_t *)fs_datastream_getdata(srnd1), key);
         return fs_btree_free(srnd0, fs_btree_free(srnd1, (a<b)? 1: 0));
     }
@@ -188,10 +188,10 @@ static inline B_NODE *fs_btree_search(FSBTREE *fbp, const str_t *key) { /* Note:
     if(fbp->root==NULL) return NULL;
     else if(fbp->root->type==n_node) {
         const B_NODE *node=NULL;
-        const B_NODE *p=fbp->root;
-        index_t index=0;
+        B_NODE *p=fbp->root;
+        counter_t index=0;
         while(p->type==n_node) {
-            index= fs_btree_getlocate(fbp, p, key);
+            index=fs_btree_getlocate(fbp, p, key);
             if(index==INDEX_ERROR) return INVALID_B_NODE;
             node=p;
             p=p->tree.node.node_ptr[index];
@@ -201,14 +201,14 @@ static inline B_NODE *fs_btree_search(FSBTREE *fbp, const str_t *key) { /* Note:
             p=node->tree.node.node_ptr[i];
             assert(p->type==n_leaf);
             SRND *srnd;
-            if(!fs_datastream_rgetdata(fbp->key, &srnd, fbp->ksize, p->tree.leaf.vch_index)) return INDEX_ERROR;
-            if(fbp->fkeyequ(key, (const str_t *)fs_datastream_getdata(srnd))) return (B_NODE *)fs_btree_ptrfree(srnd, (void *)p);
+            if(!fs_datastream_rgetdata(fbp->key, &srnd, fbp->ksize, (index_t)p->tree.leaf.vch_index)) return INVALID_B_NODE;
+            if(fbp->fkeyequ(key, (const str_t *)fs_datastream_getdata(srnd))) return (B_NODE *)fs_btree_ptrfree(srnd, p);
         }
         return NULL;
     } else if(fbp->root->type==n_leaf) {
         SRND *srnd;
-        if(!fs_datastream_rgetdata(fbp->key, &srnd, fbp->ksize, fbp->root->tree.leaf.vch_index)) return INVALID_B_NODE;
-        return fbp->fkeyequ((const str_t *)fs_datastream_getdata(srnd), key)? (B_NODE *)fs_btree_free(srnd, (void *)fbp->root): NULL;
+        if(!fs_datastream_rgetdata(fbp->key, &srnd, fbp->ksize, (index_t)fbp->root->tree.leaf.vch_index)) return INVALID_B_NODE;
+        return fbp->fkeyequ((const str_t *)fs_datastream_getdata(srnd), key)? (B_NODE *)fs_btree_ptrfree(srnd, fbp->root): NULL;
     } else
         return INVALID_B_NODE;
 }
@@ -216,7 +216,7 @@ static inline B_NODE *fs_btree_search(FSBTREE *fbp, const str_t *key) { /* Note:
 static inline bool_t fs_btree_getdata(FSBTREE *fbp, const str_t *key, SRND **data) {
     B_NODE *node = fs_btree_search(fbp, key);
     if(node==NULL) return fs_btree_setsuccess_nodata(fbp);
-    return fs_datastream_rgetdata(fbp->vch, data, fbp->dsize, node->tree.leaf.vch_index)? fs_btree_setsuccess(fbp): fs_btree_seterror(fbp, BTREE_ERROR_MEMORY_ALLOCATE_FAILURE);
+    return fs_datastream_rgetdata(fbp->vch, data, fbp->dsize, (index_t)node->tree.leaf.vch_index)? fs_btree_setsuccess(fbp): fs_btree_seterror(fbp, BTREE_ERROR_MEMORY_ALLOCATE_FAILURE);
 }
 
 static inline index_t fs_btree_getlastindex(FSBTREE *fbp) {
@@ -228,20 +228,19 @@ static inline B_NODE *fs_btree_alloc(FSBTREE *fbp, node_type type, const str_t *
     if(!p) return INVALID_B_NODE;
     if(type==n_leaf) { /* leaf insert */
         if(!fs_datastream_lshift(fbp->vch, data, fbp->dsize)) return INVALID_B_NODE;
-        if(!fs_datastream_lshift(fbp->key, key, fbp->ksize)) return INVALID_B_NODE;
+        if(!fs_datastream_lshift(fbp->key, (const byte_t *)key, fbp->ksize)) return INVALID_B_NODE;
         p->type=n_leaf;
         p->tree.leaf.vch_index=fs_btree_getlastindex(fbp);
     } else if(type==n_node) { /* node insert */
-        p->tree.node.node_ptr = (B_NODE **)fs_malloc(fbp->dimension*sizeof(B_NODE *));
+        p->tree.node.node_ptr = (B_NODE **)fs_malloc((fsize_t)(fbp->dimension*sizeof(B_NODE *)));
         if(!p->tree.node.node_ptr) return INVALID_B_NODE;
-        p->tree.node.begin_ptr = (index_t *)fs_malloc(fbp->dimension*sizeof(index_t));
+        p->tree.node.begin_ptr = (counter_t *)fs_malloc((fsize_t)(fbp->dimension*sizeof(counter_t)));
         if(!p->tree.node.begin_ptr) return INVALID_B_NODE;
         p->type=n_node;
-        memset(p->tree.node.node_ptr,NULL,fbp->dimension*sizeof(B_NODE *));
-        memset(p->tree.node.begin_ptr,NULL,fbp->dimension*sizeof(index_t));
+        for(index_t i=0; i<fbp->dimension; ++i) p->tree.node.node_ptr[i]=NULL;
+        for(index_t i=0; i<fbp->dimension; ++i) p->tree.node.begin_ptr[i]=0LL;
         p->tree.node.num=0;
-    }
-    else
+    } else
         return INVALID_B_NODE;
     ++(fbp->allocnode_count);
     return p;
@@ -261,7 +260,7 @@ static inline B_NODE *fs_btree_insert1(FSBTREE *fbp, B_INSERT *ibp, const str_t 
             if(alloc==INVALID_B_NODE) return INVALID_B_NODE;
             if(alloc==NO_ACCEPT_B_NODE) return NO_ACCEPT_B_NODE;
             SRND *srnd;
-            if(!fs_datastream_rgetdata(fbp->key, &srnd, fbp->ksize, c_node->tree.leaf.vch_index)) return INVALID_B_NODE;
+            if(!fs_datastream_rgetdata(fbp->key, &srnd, fbp->ksize, (index_t)c_node->tree.leaf.vch_index)) return INVALID_B_NODE;
             if(fbp->fkeylt(key, (const str_t *)fs_datastream_getdata(srnd))) {
                 *(ibp->p_node)=alloc;
                 *(ibp->n_index)=c_node->tree.leaf.vch_index;
@@ -275,15 +274,16 @@ static inline B_NODE *fs_btree_insert1(FSBTREE *fbp, B_INSERT *ibp, const str_t 
         }
     } else if(c_node->type==n_node) {
         B_NODE *xn = NULL;
-        index_t	xl = 0;
-        const index_t pos = fs_btree_getlocate(fbp, c_node, key);
-        B_INSERT ribp={&(c_node->tree.node.node_ptr[pos]),&xn,&xl};
+        counter_t xl = 0;
+        const counter_t pos = fs_btree_getlocate(fbp, c_node, key);
+        B_INSERT ribp;
+        ribp.p_node=&(c_node->tree.node.node_ptr[pos]); ribp.n_node=&xn; ribp.n_index=&xl;
         B_NODE *retv = fs_btree_insert1(fbp, &ribp, key, data);
         if(retv==INVALID_B_NODE) return INVALID_B_NODE;
         if(retv==NO_ACCEPT_B_NODE) return NO_ACCEPT_B_NODE;
         if(xn==NULL) return retv;
         if(c_node->tree.node.num < fbp->dimension) {
-            for(index_t i=c_node->tree.node.num-1; pos<i; --i) {
+            for(counter_t i=c_node->tree.node.num-1; pos<i; --i) {
                 c_node->tree.node.node_ptr[i+1] = c_node->tree.node.node_ptr[i];
                 c_node->tree.node.begin_ptr[i+1] = c_node->tree.node.begin_ptr[i];
             }
@@ -296,19 +296,19 @@ static inline B_NODE *fs_btree_insert1(FSBTREE *fbp, B_INSERT *ibp, const str_t 
             if(alloc==INVALID_B_NODE) return INVALID_B_NODE;
             if(alloc==NO_ACCEPT_B_NODE) return NO_ACCEPT_B_NODE;
             if(pos<fbp->halfdim-1) {
-                for(index_t i=fbp->halfdim-1, j=0; i< fbp->dimension; ++i,++j) {
+                for(counter_t i=fbp->halfdim-1, j=0; i< fbp->dimension; ++i,++j) {
                     alloc->tree.node.node_ptr[j] = c_node->tree.node.node_ptr[i];
                     alloc->tree.node.begin_ptr[j] = c_node->tree.node.begin_ptr[i];
                 }
-                for(index_t i= fbp->halfdim-2; pos<i; --i) {
+                for(counter_t i= fbp->halfdim-2; pos<i; --i) {
                     c_node->tree.node.node_ptr[i+1] = c_node->tree.node.node_ptr[i];
                     c_node->tree.node.begin_ptr[i+1] = c_node->tree.node.begin_ptr[i];
                 }
                 c_node->tree.node.node_ptr[pos+1] = xn;
                 c_node->tree.node.begin_ptr[pos+1] = xl;
             } else {
-                index_t j = fbp->dimension - fbp->halfdim;
-                for(index_t i=fbp->dimension-1; fbp->halfdim<=i; --i) {
+                counter_t j = fbp->dimension - fbp->halfdim;
+                for(counter_t i=fbp->dimension-1; fbp->halfdim<=i; --i) {
                     if(i==pos) {
                         alloc->tree.node.node_ptr[j] = xn;
                         alloc->tree.node.begin_ptr[j--] = xl;
@@ -327,8 +327,10 @@ static inline B_NODE *fs_btree_insert1(FSBTREE *fbp, B_INSERT *ibp, const str_t 
             *(ibp->n_index) = alloc->tree.node.begin_ptr[0];
             return retv;
         }
-    } else
+    } else {
         assert(!"fs_btree_insert1: bug c_node->type==n_unused");
+        return b_false;
+    }
 }
 
 static inline bool_t fs_btree_insert(FSBTREE *fbp, const str_t *key, const byte_t *data) {
@@ -339,8 +341,9 @@ static inline bool_t fs_btree_insert(FSBTREE *fbp, const str_t *key, const byte_
         return fs_btree_setsuccess(fbp);
     } else {
         B_NODE *xn=NULL;
-        index_t xl=0;
-        B_INSERT ribp={&fbp->root,&xn,&xl};
+        counter_t xl=0;
+        B_INSERT ribp;
+        ribp.p_node=&fbp->root; ribp.n_node=&xn; ribp.n_index=&xl;
         B_NODE *retv = fs_btree_insert1(fbp, &ribp, key, data);
         if(retv==INVALID_B_NODE) return fs_btree_seterror(fbp, BTREE_ERROR_MEMORY_ALLOCATE_FAILURE);
         if(retv==NO_ACCEPT_B_NODE) return fs_btree_setsuccess_noaccept(fbp);
@@ -363,21 +366,21 @@ static inline bool_t fs_btree_insert(FSBTREE *fbp, const str_t *key, const byte_
 
 static inline void fs_btree_freenode(B_NODE *node) {
     if(node->type==n_node) {
-        fs_free(node->tree.node.begin_ptr, true_t);
-        fs_free(node->tree.node.node_ptr, true_t);
-        fs_free(node, true_t);
+        fs_free(node->tree.node.begin_ptr, b_true);
+        fs_free(node->tree.node.node_ptr, b_true);
+        fs_free(node, b_true);
     } else if(node->type==n_leaf)
-        fs_free(node, true_t);
+        fs_free(node, b_true);
     else
         assert(!"fs_btree_freenode: bug node->type==n_unused");
 }
 
-static inline merge_status fs_btree_merge(FSBTREE *fbp, B_NODE *p, index_t x) {
+static inline merge_status fs_btree_merge(FSBTREE *fbp, B_NODE *p, counter_t x) {
     B_NODE *a = p->tree.node.node_ptr[x];
     B_NODE *b = p->tree.node.node_ptr[x+1];
     b->tree.node.begin_ptr[0] = p->tree.node.begin_ptr[x+1];
-    const index_t an = a->tree.node.num;
-    const index_t bn = b->tree.node.num;
+    const counter_t an = a->tree.node.num;
+    const counter_t bn = b->tree.node.num;
     if(an+bn<=fbp->dimension) {
         for(index_t i=0; i<bn; ++i) {
             a->tree.node.node_ptr[i+an] = b->tree.node.node_ptr[i];
@@ -387,10 +390,10 @@ static inline merge_status fs_btree_merge(FSBTREE *fbp, B_NODE *p, index_t x) {
         fs_btree_freenode(b);
         return m_connected;
     } else {
-        index_t n=(an+bn)>>1;
+        counter_t n=(an+bn)>>1;
         if(n < an) {
-            index_t move=an-n;
-            for(index_t i=bn-1; 0<=i; --i) {
+            counter_t move=an-n;
+            for(counter_t i=bn-1; 0<=i; --i) {
                 b->tree.node.node_ptr[i+move] = b->tree.node.node_ptr[i];
                 b->tree.node.begin_ptr[i+move] = b->tree.node.begin_ptr[i];
             }
@@ -399,7 +402,7 @@ static inline merge_status fs_btree_merge(FSBTREE *fbp, B_NODE *p, index_t x) {
                 b->tree.node.begin_ptr[i] = a->tree.node.begin_ptr[i+n];
             }
         } else {
-            int move=n-an;
+            counter_t move=n-an;
             for(index_t i=0; i<move; ++i) {
                 a->tree.node.node_ptr[i+an] = b->tree.node.node_ptr[i];
                 a->tree.node.begin_ptr[i+an] = b->tree.node.begin_ptr[i];
@@ -420,8 +423,8 @@ static inline rem_status fs_btree_remove1(FSBTREE *fbp, B_NODE *node, const str_
     *result = r_node_ok;
     if(node->type==n_leaf) {
         SRND *srnd;
-        if(!fs_datastream_rgetdata(fbp->key, &srnd, fbp->ksize, node->tree.leaf.vch_index)) return r_node_error;
-        if(fbp->fkeyequ((const char *)fs_datastream_getdata(srnd), key, fbp->ksize)) {
+        if(!fs_datastream_rgetdata(fbp->key, &srnd, fbp->ksize, (index_t)node->tree.leaf.vch_index)) return r_node_error;
+        if(fbp->fkeyequ((const char *)fs_datastream_getdata(srnd), key)) {
             *result = r_node_removed;
             fs_btree_freenode(node);
             return (rem_status)fs_btree_free(srnd, (rem_status)r_node_ok);
@@ -430,36 +433,35 @@ static inline rem_status fs_btree_remove1(FSBTREE *fbp, B_NODE *node, const str_
     } else if(node->type==n_node) {
         merge_status mstatus = m_no_connect;
         rem_status rstatus = r_node_no;
-        index_t pos = fs_btree_getlocate(fbp, node, key);
+        counter_t pos = fs_btree_getlocate(fbp, node, key);
         rem_status retv = fs_btree_remove1(fbp, node->tree.node.node_ptr[pos], key, &rstatus);
         if(rstatus==r_node_error) return r_node_error;
         if(rstatus==r_node_ok) return retv;
-        if(rstatus==r_node_need_marge) {
-            int sub = (pos==0)? 0: pos-1;
+        if(rstatus==r_node_need_merge) {
+            counter_t sub = (pos==0)? 0: pos-1;
             mstatus = fs_btree_merge(fbp, node, sub);
             if(mstatus==m_connected) pos=sub+1;
         }
         if(rstatus==r_node_removed || mstatus==m_connected) {
-            for(index_t i=pos; i<node->tree.node.num-1; ++i) {
+            for(counter_t i=pos; i<node->tree.node.num-1; ++i) {
                 node->tree.node.node_ptr[i] = node->tree.node.node_ptr[i+1];
                 node->tree.node.begin_ptr[i] = node->tree.node.begin_ptr[i+1];
             }
-            if(--(node->tree.node.num)<fbp->halfdim) {
-                *result = r_node_need_marge;
-            }
+            if(--(node->tree.node.num)<fbp->halfdim)
+                *result = r_node_need_merge;
         }
         return retv;
     } else
         return r_node_error;
 }
 
-static inline bool_t fs_btree_remove(FSBTREE *fbp, const byte_t *key) {
+static inline bool_t fs_btree_remove(FSBTREE *fbp, const str_t *key) {
     if(fbp->root==NULL) return fs_btree_setsuccess_nodata(fbp);
     else {
         rem_status result = r_node_no;
         rem_status retv = fs_btree_remove1(fbp, fbp->root, key, &result);
         if(result==r_node_removed) fbp->root = NULL;
-        else if(result==r_node_need_marge && fbp->root->tree.node.num==1) {
+        else if(result==r_node_need_merge && fbp->root->tree.node.num==1) {
             B_NODE *p = fbp->root;
             fbp->root = fbp->root->tree.node.node_ptr[0];
             fs_btree_freenode(p);
@@ -479,7 +481,7 @@ static inline bool_t fs_btree_clear1(FSBTREE *fbp, B_NODE *node) {
         }
         fs_btree_freenode(node);
     }
-    return (fs_btree_getstatus(fbp)!=BTREE_ERROR_TREE)? fs_btree_setsuccess(fbp): false_t;
+    return (fs_btree_getstatus(fbp)!=BTREE_ERROR_TREE)? fs_btree_setsuccess(fbp): b_false;
 }
 
 static inline bool_t fs_btree_clear(FSBTREE *fbp) {

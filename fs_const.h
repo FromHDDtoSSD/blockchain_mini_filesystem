@@ -5,21 +5,30 @@
 #ifndef SORACHANCOIN_FS_CONST
 #define SORACHANCOIN_FS_CONST
 
+#ifndef __STDC_WAIT_LIB_EXT1__
+# define __STDC_WAIT_LIB_EXT1__ 1
+#endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <string.h>
+#include "fs_types.h"
+
 /*
 ** Note: Must NOT change values below.
 */
-#define SECTOR_SIZE 512
-#define SECTORS_PER_CLUS 8
-#define CLUSTER_SIZE (SECTOR_SIZE*SECTORS_PER_CLUS)
-#define CLUSTER_CAPACITY 1024
-#define SECTOR_CAPACITY (CLUSTER_CAPACITY*SECTORS_PER_CLUS)
-#define FS_PATH_LENGTH 32
+#define BYTES_PER_SECTOR 512
+#define SECTORS_PER_CLUSTER 8
+#define BYTES_PER_CLUSTER (BYTES_PER_SECTOR*SECTORS_PER_CLUSTER)
+#define CLUSTERS_PER_CHUNK 1024
+#define SECTORS_PER_CHUNK (CLUSTERS_PER_CHUNK*SECTORS_PER_CLUSTER)
+#define BYTES_PER_CHUNK (CLUSTERS_PER_CHUNK*BYTES_PER_CLUSTER)
+
 #ifndef MAX_PATH
 # define MAX_PATH 260
 #endif
-
 #define ARRAYLEN(X) (sizeof(X)/sizeof(X[0]))
-#define true_t 1
-#define false_t 0
+#define b_true 1
+#define b_false 0
 
 #endif
