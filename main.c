@@ -12,13 +12,16 @@
 #include "fs_datastream.h"
 #include "fs_btree.h"
 #include "fs_sha256.h"
+#include "fs_bpb.h"
+#include "fs_cluster.h"
 
 //[OK]#define FS_TEST1
 //[OK]#define FS_TEST2
 //[OK]#define FS_TEST3
 //[OK]#define FS_TEST4
 //[OK]#define FS_TEST5
-#define FS_TEST6
+//[OK]#define FS_TEST6
+#define FS_TEST7
 
 #ifdef WIN32
 #include <windows.h>
@@ -161,7 +164,7 @@ int main(int argc, char *argv[]) {
 # ifdef WIN32
     MessageBoxA(NULL, "bitmap sector test.", "test 4", MB_OK);
 # else
-    printf("test4: bitmap test.\n");
+    printf("test4: bitmap sector test.\n");
 # endif
     for(index_t test = 0; test < 30; ++test) {
         const sector_t begin = rand() % 100000;
@@ -186,7 +189,7 @@ int main(int argc, char *argv[]) {
                 assert(fs_bitmap_getmask_allusedrange(bp, begin, num, &used));
                 assert(used);
                 sector_t nsec;
-                assert(fs_bitmap_getmask_freesector(bp, rand()%154367, &nsec));
+                assert(fs_bitmap_getmask_freesector(bp, rand()%154367, 0, &nsec));
                 fs_printf("new free sector: %I64d\n", nsec);
                 assert(fs_diskwith_bitmap_erase(bp, begin, num/2));
                 assert(fs_bitmap_getmask_allusedrange(bp, begin+num/2, num/2, &used));
@@ -340,6 +343,45 @@ Is that true? We always don't get reply that much, but ... this time was so earl
     fs_sha256_close(sp, b_true);
     fs_sha256_test();
 #endif
+
+#ifdef FS_TEST7
+# ifdef WIN32
+    MessageBoxA(NULL, "cluster R/W and bitmap test.", "test 7", MB_OK);
+# else
+    printf("test7: cluster R/W and bitmap test.\n");
+# endif
+    for(index_t test = 0; test < 30; ++test) {
+        const cluster_t begin = rand() % 10000;
+        const cluster_t num   = rand() % 986000;
+        if(num == 0) assert(0);
+        const llsize_t bsize=num*BYTES_PER_CLUSTER;
+        byte_t *wbuf = fs_malloc((fsize_t)bsize);
+        assert(wbuf);
+        BPB bpb;
+        bpb.bpb_offset = rand() % 150000;
+        if(bpb.bpb_offset<_BITS_PER_SECTOR) bpb.bpb_offset=_BITS_PER_SECTOR;
+        FSDISK *fdp;
+        FSBITMAP *bp;
+        assert(fs_disk_open(&fdp, target_dir));
+        assert(fs_bitmap_open(&bp, fdp));
+        for(index_t i=0; i<bsize; ++i) wbuf[i]=(byte_t)rand();
+        assert(fs_cluster_diskwrite(bp, &bpb, begin, num, wbuf));
+        bool_t used=b_false;
+        assert(fs_cluster_someusedrange(bp, &bpb, begin, num, &used));
+        assert(used);
+        cluster_t nclus;
+        assert(fs_cluster_getfreecluster(bp, &bpb, rand()%154367, &nclus));
+        fs_printf("new free cluster: %I64d\n", nclus);
+        assert(fs_cluster_erasebitmap(bp, &bpb, begin, num/2));
+        assert(fs_cluster_someusedrange(bp, &bpb, begin+num/2, num/2, &used));
+        assert(used);
+        assert(fs_cluster_someusedrange(bp, &bpb, begin, num/2, &used));
+        assert(!used);
+        fs_free(wbuf, fs_disk_close(fdp, fs_bitmap_close(bp, b_true)));
+    }
+#endif
+
+
 
 
 

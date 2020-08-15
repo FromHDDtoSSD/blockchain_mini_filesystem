@@ -121,9 +121,9 @@ static inline bool_t fs_bitmap_getmask_allusedrange(FSBITMAP *bp, sector_t begin
     return fs_bitmap_setsuccess(bp);
 }
 
-static inline bool_t fs_bitmap_getmask_freesector(FSBITMAP *bp, counter_t num, sector_t *begin) {
+static inline bool_t fs_bitmap_getmask_freesector(FSBITMAP *bp, counter_t num, sector_t offset, sector_t *begin) {
     *begin=_BITS_PER_SECTOR; /* after 4096. */
-    sector_t ite=_BITS_PER_SECTOR;
+    sector_t ite=(offset<_BITS_PER_SECTOR)? _BITS_PER_SECTOR: offset;
     for(;;ite+=num) {
         bool_t used=b_false;
         if(!fs_bitmap_getmask_someusedrange(bp, ite, num, &used)) {
